@@ -1,39 +1,29 @@
-import pool from '../config/database.js'
+import mongoose from 'mongoose'
 
-export class Tournament {
-  static async create(name, description, createdBy) {
-    const connection = await pool.getConnection()
-    try {
-      const [result] = await connection.execute(
-        'INSERT INTO tournaments (name, description, created_by) VALUES (?, ?, ?)',
-        [name, description, createdBy]
-      )
-      return result.insertId
-    } finally {
-      connection.release()
-    }
-  }
+const tournamentSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
+  description: {
+    type: String,
+    default: ''
+  },
+  status: {
+    type: String,
+    enum: ['planning', 'active', 'completed'],
+    default: 'planning'
+  },
+  created_by: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  start_date: Date,
+  end_date: Date
+}, { timestamps: true })
 
-  static async getById(id) {
-    const connection = await pool.getConnection()
-    try {
-      const [rows] = await connection.execute(
-        'SELECT * FROM tournaments WHERE id = ?',
-        [id]
-      )
-      return rows[0]
-    } finally {
-      connection.release()
-    }
-  }
+export default mongoose.model('Tournament', tournamentSchema)
 
-  static async getAll() {
-    const connection = await pool.getConnection()
-    try {
-      const [rows] = await connection.execute('SELECT * FROM tournaments')
-      return rows
-    } finally {
-      connection.release()
-    }
-  }
-}

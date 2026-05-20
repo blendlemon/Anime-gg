@@ -5,11 +5,12 @@
 
 ## 🎯 PROJECT OVERVIEW
 
-**Description:** Torneo eliminatorio de 16 openings de anime con bracket interactivo. Frontend en React + Vite + Tailwind, Backend en Express + MySQL.
+**Description:** Torneo eliminatorio de 16 openings de anime con bracket interactivo. Frontend en React + Vite + Tailwind, Backend en Express + MongoDB (Docker).
 
 **Tech Stack:**
 - Frontend: React 18, Vite, Tailwind CSS, Axios
-- Backend: Express.js, MySQL2 (promesas), Node.js
+- Backend: Express.js, MongoDB (Docker), Mongoose, Node.js
+- Database: MongoDB 7.0 (Docker + Docker Compose)
 - Package Manager: pnpm (NOT npm)
 - API Externa: AnimeThemes (api.animethemes.moe) - Pública, sin API key
 
@@ -17,6 +18,8 @@
 - Frontend Dev: `http://localhost:5173`
 - Backend: `http://localhost:5000`
 - Backend API: `http://localhost:5000/api`
+- MongoDB: `mongodb://root:rootpassword@localhost:27017/anime_tournament?authSource=admin`
+- Mongo Express (Admin): `http://localhost:8081` (admin/admin123)
 - AnimeThemes API: `https://api.animethemes.moe`
 - AnimeThemes Docs: `https://api-docs.animethemes.moe/`
 
@@ -44,10 +47,13 @@ pnpm add pkg   # Add package
 - **Proxy:** `/api` routes to `http://localhost:5000`
 - **Config:** `client/vite.config.js`
 
-### Database
-- **Type:** MySQL
-- **Config:** `server/src/config/database.js`
-- **Schema:** `server/src/database/schema.sql`
+### Database (MongoDB)
+- **Type:** MongoDB 7.0 (Docker)
+- **Connection:** Docker Compose (`docker-compose.yml`)
+- **URI:** `mongodb://root:rootpassword@localhost:27017/anime_tournament?authSource=admin`
+- **ORM:** Mongoose 8.x
+- **Models:** `server/src/models/*.js`
+- **Admin UI:** Mongo Express (`http://localhost:8081`)
 - **Tables:** users, anime_openings, tournaments, tournament_participants, matches, votes
 
 ---

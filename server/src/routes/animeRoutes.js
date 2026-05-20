@@ -1,29 +1,28 @@
-/**
- * Anime Routes
- * Rutas para búsqueda y obtención de animes y openings
- */
-
 import express from 'express'
-import * as animeController from '../controllers/animeController.js'
+import {
+  searchOpeningsController,
+  getAnimeOpeningsController,
+  getAllOpeningsController
+} from '../controllers/animeController.js'
 
 const router = express.Router()
 
 /**
- * GET /api/anime/search?q=naruto
- * Busca animes por nombre y obtiene sus openings
+ * GET /api/anime/search?q=query
+ * Busca openings en AnimeThemes y guarda en MongoDB
  */
-router.get('/search', animeController.searchOpenings)
+router.get('/search', searchOpeningsController)
 
 /**
- * GET /api/anime/popular
- * Obtiene openings populares (top animes)
+ * GET /api/anime/anime?slug=slug
+ * Obtiene openings de un anime específico
  */
-router.get('/popular', animeController.getPopularOpenings)
+router.get('/anime', getAnimeOpeningsController)
 
 /**
- * GET /api/anime/:slug
- * Obtiene todos los openings de un anime específico por su slug
+ * GET /api/anime
+ * Obtiene todos los openings (con paginación opcional)
  */
-router.get('/:slug', animeController.getAnimeBySlug)
+router.get('/', getAllOpeningsController)
 
 export default router

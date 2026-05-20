@@ -1,35 +1,64 @@
-/**
- * Anime Controller
- * Controlador para manejar peticiones relacionadas con anime
- */
-
-import * as animeThemesService from '../utils/animeThemesService.js'
+import AnimeOpening from '../models/AnimeOpening.js'
+import { searchOpenings, getAnimeBySlug } from '../utils/animeThemesService.js'
 
 /**
- * Buscar openings por nombre de anime
+ * Busca openings en AnimeThemes y guarda los nuevos en MongoDB
  */
-export const searchOpenings = async (req, res) => {
+export const searchOpeningsController = async (req, res) => {
   try {
     const { q } = req.query
 
     if (!q) {
       return res.status(400).json({
         success: false,
-        error: 'El parámetro de búsqueda "q" es requerido'
+        error: 'Query parameter q es requerido'
       })
     }
 
-    const results = await animeThemesService.searchOpenings(q)
+    const openings = await searchOpenings(q)
 
-    res.status(200).json({
+    if (openings.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'No se encontraron openings',
+        data: []
+      })
+    }
+
+    const savedOpenings = []
+    for (const opening of openings) {
+      const upserted = await AnimeOpening.findOneAndUpdate(
+        {
+          anime_slug: opening.anime_slug,
+          sequence: opening.sequence,
+          type: opening.type
+        },
+        {
+          title: opening.title,
+          anime_title: opening.anime_title,
+          anime_slug: opening.anime_slug,
+          year: opening.year,
+          season: opening.season,
+          artist: opening.artist,
+          video_url: opening.video_url,
+          thumbnail_url: opening.thumbnail_url,
+          type: opening.type,
+          sequence: opening.sequence,
+          source: 'animethemes'
+        },
+        { upsert: true, new: true }
+      )
+      savedOpenings.push(upserted)
+    }
+
+    res.json({
       success: true,
-      data: results,
-      query: q,
-      count: results.length,
-      message: 'Búsqueda de openings completada'
+      data: savedOpenings,
+      count: savedOpenings.length,
+      message: 'Openings encontrados y guardados exitosamente'
     })
   } catch (error) {
-    console.error('Error in searchOpenings controller:', error)
+    console.error('Error searching openings:', error)
     res.status(500).json({
       success: false,
       error: 'Error al buscar openings',
@@ -39,71 +68,87 @@ export const searchOpenings = async (req, res) => {
 }
 
 /**
- * Obtener anime con todos sus openings por slug
+ * Obtiene todos los openings de un anime por slug
  */
-export const getAnimeBySlug = async (req, res) => {
+export const getAnimeOpeningsController = async (req, res) => {
   try {
-    const { slug } = req.params
+    const { slug } = req.query
 
     if (!slug) {
       return res.status(400).json({
         success: false,
-        error: 'El slug del anime es requerido'
+        error: 'Query parameter slug es requerido'
       })
     }
 
-    const anime = await animeThemesService.getAnimeBySlug(slug)
+    let openings = await AnimeOpening.find({ anime_slug: slug }).sort({ sequence: 1 })
 
-    if (!anime) {
-      return res.status(404).json({
-        success: false,
-        error: 'Anime no encontrado'
-      })
+    if (openings.length === 0) {
+      const animeThemesOpenings = await getAnimeBySlug(slug)
+
+      if (animeThemesOpenings.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'No se encontraron openings para este anime'
+        })
+      }
+
+      openings = await AnimeOpening.insertMany(
+        animeThemesOpenings.map(o => ({
+          ...o,
+          source: 'animethemes'
+        }))
+      )
     }
 
-    res.status(200).json({
+    res.json({
       success: true,
-      data: anime,
-      message: 'Anime obtenido exitosamente'
+      data: openings,
+      count: openings.length,
+      message: 'Openings obtenidos exitosamente'
     })
   } catch (error) {
-    console.error('Error in getAnimeBySlug controller:', error)
-
-    if (error.message === 'Anime no encontrado') {
-      return res.status(404).json({
-        success: false,
-        error: error.message
-      })
-    }
-
+    console.error('Error getting anime openings:', error)
     res.status(500).json({
       success: false,
-      error: 'Error al obtener el anime',
+      error: 'Error al obtener openings',
       details: error.message
     })
   }
 }
 
 /**
- * Obtener openings populares
+ * Obtiene todos los openings guardados en MongoDB
  */
-export const getPopularOpenings = async (req, res) => {
+export const getAllOpeningsController = async (req, res) => {
   try {
-    const openings = await animeThemesService.getPopularOpenings()
+    const { limit = 50, skip = 0, type } = req.query
 
-    res.status(200).json({
+    const query = {}
+    if (type && ['OP', 'ED'].includes(type.toUpperCase())) {
+      query.type = type.toUpperCase()
+    }
+
+    const openings = await AnimeOpening.find(query)
+      .limit(parseInt(limit))
+      .skip(parseInt(skip))
+      .sort({ anime_title: 1, sequence: 1 })
+
+    const total = await AnimeOpening.countDocuments(query)
+
+    res.json({
       success: true,
       data: openings,
       count: openings.length,
-      message: 'Openings populares obtenidos exitosamente'
+      total,
+      message: 'Openings obtenidos exitosamente'
     })
   } catch (error) {
-    console.error('Error in getPopularOpenings controller:', error)
+    console.error('Error getting openings:', error)
     res.status(500).json({
       success: false,
-      error: 'Error al obtener openings populares',
+      error: 'Error al obtener openings',
       details: error.message
     })
   }
 }
-
