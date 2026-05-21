@@ -49,6 +49,10 @@ app.use('/api/tournaments', tournamentsRouter)
 app.use('/api/anime', animeRoutes)
 app.use('/api/rooms', roomRoutes)
 
+// Admin endpoints
+import { cleanupOrphanedTournaments } from './controllers/animeController.js'
+app.get('/api/admin/cleanup', cleanupOrphanedTournaments)
+
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({

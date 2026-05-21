@@ -27,9 +27,8 @@ export const RoomPage = () => {
 
   // Estados
   const [roomStatus, setRoomStatus] = useState('waiting') // waiting | voting | results
+  const [roomData, setRoomData] = useState(null) // Datos completos de la sala
   const [connectedUsers, setConnectedUsers] = useState([])
-  const [isHost, setIsHost] = useState(false)
-  const [hostUserId, setHostUserId] = useState(null)
   const [currentMatch, setCurrentMatch] = useState(null)
   const [votes, setVotes] = useState({ participant1: 0, participant2: 0 })
   const [hasVoted, setHasVoted] = useState(false)
@@ -37,27 +36,20 @@ export const RoomPage = () => {
   const [error, setError] = useState(null)
   const [showRoomClosedModal, setShowRoomClosedModal] = useState(false)
 
-  // Conectar a la sala cuando Socket.IO esté listo
-  useEffect(() => {
-    console.log('RoomPage useEffect check:', {
-      hasSocket: !!socket,
-      hasUser: !!user,
-      hasInviteCode: !!inviteCode,
-      user: user
-    })
+  // Derived: determinar si el usuario actual es el host
+  const hostUserId = roomData?.host_user_id
+  const isHost = Boolean(
+    hostUserId && (hostUserId === user?.id || hostUserId === user?._id)
+  )
 
+  // Conectar a la sala cuando Socket.IO esté listo y user esté disponible
+  useEffect(() => {
     if (!socket || !user || !inviteCode) {
-      console.log('Esperando socket, user o inviteCode...')
       return
     }
 
-    console.log('Emitiendo join_room con:', {
-      inviteCode,
-      userId: user.id,
-      username: user.username
-    })
-
-    joinRoom(inviteCode, user.id, user.username)
+    // Emitir join_room solo cuando todo esté listo
+    joinRoom(inviteCode, user.id || user._id, user.username)
   }, [socket, user, inviteCode, joinRoom])
 
   // Listeners para eventos de la sala
@@ -66,23 +58,26 @@ export const RoomPage = () => {
 
     // Cuando la sala se actualiza (usuario se une/sale)
     onRoomUpdated((data) => {
-      console.log('Room updated:', data)
+      // Guardar los datos completos de la sala
+      setRoomData(data)
       setConnectedUsers(data.connected_users || [])
       setRoomStatus(data.status || 'waiting')
-      setHostUserId(data.host_user_id)
-      setIsHost(data.host_user_id === user?._id)
       setLoading(false)
     })
 
     // Cuando el host inicia el torneo
     onTournamentStarted((data) => {
       console.log('Tournament started:', data)
+      // Actualizar datos de sala y pasar a modo votación
+      setRoomData(prev => ({ ...prev, status: 'voting' }))
       setRoomStatus('voting')
       if (data.currentMatch) {
         setCurrentMatch(data.currentMatch)
         setVotes({ participant1: 0, participant2: 0 })
         setHasVoted(false)
       }
+      // Asegurar que todos estén en la ruta /room/:inviteCode (si hay que forzar navegación)
+      navigate(`/room/${inviteCode}`, { replace: true })
     })
 
     // Cuando se actualiza el contador de votos
@@ -127,7 +122,7 @@ export const RoomPage = () => {
   // Manejar voto
   const handleVote = (participantId) => {
     if (!hasVoted && currentMatch && user) {
-      submitVote(inviteCode, currentMatch._id, participantId, user._id)
+      submitVote(inviteCode, currentMatch._id, participantId, user.id || user._id)
       setHasVoted(true)
     }
   }
@@ -135,21 +130,21 @@ export const RoomPage = () => {
   // Iniciar torneo (solo host)
   const handleStartTournament = () => {
     if (isHost && user) {
-      startTournament(inviteCode, user._id)
+      startTournament(inviteCode, user.id || user._id)
     }
   }
 
   // Avanzar al siguiente match (solo host)
   const handleNextMatch = () => {
     if (isHost && user) {
-      nextMatch(inviteCode, user._id)
+      nextMatch(inviteCode, user.id || user._id)
     }
   }
 
   // Abandonar sala
   const handleLeaveRoom = () => {
     if (user) {
-      leaveRoom(inviteCode, user._id)
+      leaveRoom(inviteCode, user.id || user._id)
       navigate('/home')
     }
   }
@@ -343,10 +338,16 @@ export const RoomPage = () => {
               <div className="space-y-4">
                 <div className="aspect-video rounded-2xl overflow-hidden bg-zinc-900 border-2 border-zinc-800">
                   <video
-                    src={currentMatch.participant1?.video_url}
+                    key={currentMatch.participant1?.video_url}
                     controls
                     className="w-full h-full"
-                  />
+                  >
+                    <source
+                      src={`http://localhost:5001/api/proxy/video?url=${encodeURIComponent(currentMatch.participant1?.video_url)}`}
+                      type="video/webm"
+                    />
+                    Tu navegador no soporta vídeo WebM
+                  </video>
                 </div>
 
                 <div className="space-y-2">
@@ -391,10 +392,16 @@ export const RoomPage = () => {
               <div className="space-y-4">
                 <div className="aspect-video rounded-2xl overflow-hidden bg-zinc-900 border-2 border-zinc-800">
                   <video
-                    src={currentMatch.participant2?.video_url}
+                    key={currentMatch.participant2?.video_url}
                     controls
                     className="w-full h-full"
-                  />
+                  >
+                    <source
+                      src={`http://localhost:5001/api/proxy/video?url=${encodeURIComponent(currentMatch.participant2?.video_url)}`}
+                      type="video/webm"
+                    />
+                    Tu navegador no soporta vídeo WebM
+                  </video>
                 </div>
 
                 <div className="space-y-2">

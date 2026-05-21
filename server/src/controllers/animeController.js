@@ -1,5 +1,63 @@
 import AnimeOpening from '../models/AnimeOpening.js'
+import Tournament from '../models/Tournament.js'
+import Room from '../models/Room.js'
 import { searchOpenings, getAnimeBySlug } from '../utils/animeThemesService.js'
+
+// Proxy para reproducir vídeos que requieren Referer (animethemes.moe)
+export const proxyVideo = async (req, res) => {
+  try {
+    const { url } = req.query
+    if (!url) {
+      return res.status(400).json({ success: false, error: 'URL requerida' })
+    }
+
+    const decodedUrl = decodeURIComponent(url)
+    console.log('Proxy video request:', decodedUrl)
+
+    // Fetch con headers correctos para AnimeThemes
+    const response = await fetch(decodedUrl, {
+      headers: {
+        'Referer': 'https://animethemes.moe/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'video/webm,video/*,*/*',
+        'Range': req.headers.range || 'bytes=0-'
+      }
+    })
+
+    if (!response.ok) {
+      console.error(`Proxy video fetch failed: ${response.status} ${response.statusText}`)
+      return res.status(response.status).json({ error: 'Error fetching video' })
+    }
+
+    // Forzar Content-Type correcto
+    res.setHeader('Content-Type', 'video/webm; charset=utf-8')
+    res.setHeader('Accept-Ranges', 'bytes')
+    res.setHeader('Access-Control-Allow-Origin', '*')
+
+    const contentLength = response.headers.get('content-length')
+    if (contentLength) {
+      res.setHeader('Content-Length', contentLength)
+    }
+
+    const contentRange = response.headers.get('content-range')
+    if (contentRange) {
+      res.setHeader('Content-Range', contentRange)
+      res.status(206)
+    }
+
+    console.log('Proxy video serving:', {
+      contentType: res.getHeader('Content-Type'),
+      contentLength: contentLength,
+      status: res.statusCode
+    })
+
+    // Pipe del stream al cliente
+    response.body.pipe(res)
+  } catch (error) {
+    console.error('Error en proxyVideo:', error)
+    res.status(500).json({ success: false, error: 'Error al obtener vídeo' })
+  }
+}
 
 /**
  * Busca openings en AnimeThemes y guarda los nuevos en MongoDB
@@ -148,6 +206,38 @@ export const getAllOpeningsController = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Error al obtener openings',
+      details: error.message
+    })
+  }
+}
+
+/**
+ * GET /api/admin/cleanup
+ * Elimina todos los tournaments que no tienen una Room asociada (torneos huérfanos)
+ */
+export const cleanupOrphanedTournaments = async (req, res) => {
+  try {
+    // Obtener todos los tournament IDs que tienen una Room
+    const roomsWithTournaments = await Room.find().select('tournament_id')
+    const associatedTournamentIds = roomsWithTournaments.map(r => r.tournament_id.toString())
+
+    // Buscar y eliminar torneos sin sala asociada
+    const result = await Tournament.deleteMany({
+      _id: { $nin: associatedTournamentIds }
+    })
+
+    console.log(`✓ Limpieza completada: ${result.deletedCount} torneos huérfanos eliminados`)
+
+    res.json({
+      success: true,
+      message: `${result.deletedCount} torneos huérfanos eliminados`,
+      deletedCount: result.deletedCount
+    })
+  } catch (error) {
+    console.error('Error en cleanupOrphanedTournaments:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Error al limpiar torneos',
       details: error.message
     })
   }

@@ -2,7 +2,9 @@ import express from 'express'
 import {
   searchOpeningsController,
   getAnimeOpeningsController,
-  getAllOpeningsController
+  getAllOpeningsController,
+  proxyVideo,
+  cleanupOrphanedTournaments
 } from '../controllers/animeController.js'
 
 const router = express.Router()
@@ -24,5 +26,11 @@ router.get('/anime', getAnimeOpeningsController)
  * Obtiene todos los openings (con paginación opcional)
  */
 router.get('/', getAllOpeningsController)
+
+/**
+ * GET /api/proxy/video?url=<encoded_url>
+ * Proxy para reproducir vídeos que requieren headers Referer
+ */
+router.get('/proxy/video', proxyVideo)
 
 export default router
