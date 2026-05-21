@@ -1,5 +1,52 @@
 import AnimeOpening from '../models/AnimeOpening.js'
+import Tournament from '../models/Tournament.js'
+import Room from '../models/Room.js'
+import fetch from 'node-fetch'
 import { searchOpenings, getAnimeBySlug } from '../utils/animeThemesService.js'
+
+export const proxyVideo = async (req, res) => {
+  try {
+    const { url } = req.query
+
+    if (!url || url === 'undefined') {
+      return res.status(400).json({ error: 'URL requerida' })
+    }
+
+    const decodedUrl = decodeURIComponent(url)
+    const response = await fetch(decodedUrl, {
+      headers: {
+        Referer: 'https://animethemes.moe/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        Accept: 'video/webm,video/*,*/*',
+        Range: req.headers.range || 'bytes=0-'
+      }
+    })
+
+    if (!response.ok && response.status !== 206) {
+      return res.status(response.status).json({ error: 'Error al obtener vídeo' })
+    }
+
+    res.setHeader('Content-Type', 'video/webm')
+    res.setHeader('Accept-Ranges', 'bytes')
+    res.setHeader('Access-Control-Allow-Origin', '*')
+
+    const contentLength = response.headers.get('content-length')
+    const contentRange = response.headers.get('content-range')
+
+    if (contentLength) {
+      res.setHeader('Content-Length', contentLength)
+    }
+    if (contentRange) {
+      res.setHeader('Content-Range', contentRange)
+      res.status(206)
+    }
+
+    response.body.pipe(res)
+  } catch (error) {
+    console.error('Error proxy vídeo:', error)
+    res.status(500).json({ error: 'Error al obtener vídeo' })
+  }
+}
 
 /**
  * Busca openings en AnimeThemes y guarda los nuevos en MongoDB
@@ -148,6 +195,29 @@ export const getAllOpeningsController = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Error al obtener openings',
+      details: error.message
+    })
+  }
+}
+
+export const cleanupOrphanedTournaments = async (req, res) => {
+  try {
+    const rooms = await Room.find({}, 'tournament_id')
+    const activeTournamentIds = rooms.map((room) => room.tournament_id)
+
+    const result = await Tournament.deleteMany({
+      _id: { $nin: activeTournamentIds }
+    })
+
+    res.json({
+      success: true,
+      deletedCount: result.deletedCount
+    })
+  } catch (error) {
+    console.error('Error cleanup torneos huérfanos:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Error en cleanup',
       details: error.message
     })
   }

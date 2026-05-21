@@ -118,6 +118,7 @@ export const createTournament = async (req, res) => {
       title: opening.title,
       anime_title: opening.anime_title,
       artist: opening.artist,
+      video_url: opening.video_url,
       thumbnail_url: opening.thumbnail_url,
       wins: 0
     }))

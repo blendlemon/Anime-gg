@@ -38,13 +38,9 @@ export const CreateTournamentPage = () => {
       )
 
       if (response.success) {
-        setSuccess(true)
-        setInviteCode(response.tournament.invite_code)
-        setTournamentId(response.tournament._id)
-        // Limpiar formulario después de 3 segundos
-        setTimeout(() => {
-          navigate('/home')
-        }, 3000)
+        navigate(`/room/${response.tournament.invite_code}`, {
+          state: { isHost: true, tournamentId: response.tournament._id }
+        })
       }
     } catch (err) {
       setError(err.message)

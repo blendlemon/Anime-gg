@@ -27,15 +27,26 @@ export const RoomPage = () => {
 
   // Estados
   const [roomStatus, setRoomStatus] = useState('waiting') // waiting | voting | results
+  const [roomData, setRoomData] = useState(null)
   const [connectedUsers, setConnectedUsers] = useState([])
-  const [isHost, setIsHost] = useState(false)
-  const [hostUserId, setHostUserId] = useState(null)
   const [currentMatch, setCurrentMatch] = useState(null)
   const [votes, setVotes] = useState({ participant1: 0, participant2: 0 })
   const [hasVoted, setHasVoted] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showRoomClosedModal, setShowRoomClosedModal] = useState(false)
+  const userId = user?.id || user?._id
+  const hostUserId = roomData?.host_user_id
+  const isHost = !!hostUserId && (
+    hostUserId.toString() === user?.id?.toString() ||
+    hostUserId.toString() === user?._id?.toString()
+  )
+
+  const getVideoUrl = (participant) => {
+    const videoUrl = participant?.video_url || participant?.opening_id?.video_url
+    if (!videoUrl) return null
+    return `http://localhost:5001/api/proxy/video?url=${encodeURIComponent(videoUrl)}`
+  }
 
   // Conectar a la sala cuando Socket.IO esté listo
   useEffect(() => {
@@ -46,19 +57,14 @@ export const RoomPage = () => {
       user: user
     })
 
-    if (!socket || !user || !inviteCode) {
+    if (!socket || !user || !inviteCode || !userId) {
       console.log('Esperando socket, user o inviteCode...')
       return
     }
 
-    console.log('Emitiendo join_room con:', {
-      inviteCode,
-      userId: user.id,
-      username: user.username
-    })
-
-    joinRoom(inviteCode, user.id, user.username)
-  }, [socket, user, inviteCode, joinRoom])
+    console.log('Emitiendo join_room con:', { inviteCode, user })
+    joinRoom(inviteCode, userId, user.username)
+  }, [socket, user, inviteCode, joinRoom, userId])
 
   // Listeners para eventos de la sala
   useEffect(() => {
@@ -67,10 +73,9 @@ export const RoomPage = () => {
     // Cuando la sala se actualiza (usuario se une/sale)
     onRoomUpdated((data) => {
       console.log('Room updated:', data)
+      setRoomData(data)
       setConnectedUsers(data.connected_users || [])
       setRoomStatus(data.status || 'waiting')
-      setHostUserId(data.host_user_id)
-      setIsHost(data.host_user_id === user?._id)
       setLoading(false)
     })
 
@@ -122,34 +127,34 @@ export const RoomPage = () => {
       console.error('Socket error:', data)
       setError(data.message)
     })
-  }, [socket, user, onRoomUpdated, onTournamentStarted, onVoteUpdate, onMatchChanged, onTournamentEnded, onRoomClosed, onError, navigate])
+  }, [socket, onRoomUpdated, onTournamentStarted, onVoteUpdate, onMatchChanged, onTournamentEnded, onRoomClosed, onError, navigate])
 
   // Manejar voto
   const handleVote = (participantId) => {
-    if (!hasVoted && currentMatch && user) {
-      submitVote(inviteCode, currentMatch._id, participantId, user._id)
+    if (!hasVoted && currentMatch && userId) {
+      submitVote(inviteCode, currentMatch._id, participantId, userId)
       setHasVoted(true)
     }
   }
 
   // Iniciar torneo (solo host)
   const handleStartTournament = () => {
-    if (isHost && user) {
-      startTournament(inviteCode, user._id)
+    if (isHost && userId) {
+      startTournament(inviteCode, userId)
     }
   }
 
   // Avanzar al siguiente match (solo host)
   const handleNextMatch = () => {
-    if (isHost && user) {
-      nextMatch(inviteCode, user._id)
+    if (isHost && userId) {
+      nextMatch(inviteCode, userId)
     }
   }
 
   // Abandonar sala
   const handleLeaveRoom = () => {
-    if (user) {
-      leaveRoom(inviteCode, user._id)
+    if (userId) {
+      leaveRoom(inviteCode, userId)
       navigate('/home')
     }
   }
@@ -269,7 +274,7 @@ export const RoomPage = () => {
                     <span className="text-zinc-100 font-medium">
                       {u.username}
                     </span>
-                    {isHost && u._id === hostUserId && (
+                    {u._id?.toString() === hostUserId?.toString() && (
                       <span className="ml-auto px-3 py-1 bg-violet-600/20 text-violet-300 text-sm rounded-full">
                         👑 Host
                       </span>
@@ -343,10 +348,18 @@ export const RoomPage = () => {
               <div className="space-y-4">
                 <div className="aspect-video rounded-2xl overflow-hidden bg-zinc-900 border-2 border-zinc-800">
                   <video
-                    src={currentMatch.participant1?.video_url}
+                    key={getVideoUrl(currentMatch.participant1)}
                     controls
                     className="w-full h-full"
-                  />
+                  >
+                    {getVideoUrl(currentMatch.participant1) && (
+                      <source
+                        src={getVideoUrl(currentMatch.participant1)}
+                        type="video/webm"
+                      />
+                    )}
+                    Tu navegador no soporta vídeo WebM
+                  </video>
                 </div>
 
                 <div className="space-y-2">
@@ -391,10 +404,18 @@ export const RoomPage = () => {
               <div className="space-y-4">
                 <div className="aspect-video rounded-2xl overflow-hidden bg-zinc-900 border-2 border-zinc-800">
                   <video
-                    src={currentMatch.participant2?.video_url}
+                    key={getVideoUrl(currentMatch.participant2)}
                     controls
                     className="w-full h-full"
-                  />
+                  >
+                    {getVideoUrl(currentMatch.participant2) && (
+                      <source
+                        src={getVideoUrl(currentMatch.participant2)}
+                        type="video/webm"
+                      />
+                    )}
+                    Tu navegador no soporta vídeo WebM
+                  </video>
                 </div>
 
                 <div className="space-y-2">

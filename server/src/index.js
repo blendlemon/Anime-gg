@@ -9,6 +9,7 @@ import animeRoutes from './routes/animeRoutes.js'
 import authRoutes from './routes/authRoutes.js'
 import roomRoutes from './routes/roomRoutes.js'
 import setupRoomSocket from './sockets/roomSocket.js'
+import { proxyVideo, cleanupOrphanedTournaments } from './controllers/animeController.js'
 
 dotenv.config()
 
@@ -48,6 +49,8 @@ app.use('/api/auth', authRoutes)
 app.use('/api/tournaments', tournamentsRouter)
 app.use('/api/anime', animeRoutes)
 app.use('/api/rooms', roomRoutes)
+app.get('/api/proxy/video', proxyVideo)
+app.get('/api/admin/cleanup', cleanupOrphanedTournaments)
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -74,4 +77,3 @@ httpServer.listen(PORT, () => {
   console.log(`✓ API Health: http://localhost:${PORT}/api/health`)
   console.log(`✓ Socket.IO: ws://localhost:${PORT}`)
 })
-
