@@ -2,7 +2,68 @@ import Room from '../models/Room.js'
 import Match from '../models/Match.js'
 import Vote from '../models/Vote.js'
 import Tournament from '../models/Tournament.js'
-import TournamentParticipant from '../models/TournamentParticipant.js'
+import AnimeOpening from '../models/AnimeOpening.js'
+import mongoose from 'mongoose'
+
+const normalizeId = (value) => {
+  if (!value) return ''
+  return value.toString()
+}
+
+const mapMatchForClient = async (match, tournament) => {
+  if (!match || !tournament) return null
+
+  const participants = tournament.participants || []
+  const openingIds = participants
+    .map((participant) => participant.opening_id)
+    .filter(Boolean)
+
+  const openings = await AnimeOpening.find({ _id: { $in: openingIds } }).select('_id video_url')
+  const openingVideos = new Map(
+    openings.map((opening) => [normalizeId(opening._id), opening.video_url])
+  )
+
+  const participant1 = participants.find(
+    (participant) => normalizeId(participant._id) === normalizeId(match.participant1_id)
+  )
+  const participant2 = participants.find(
+    (participant) => normalizeId(participant._id) === normalizeId(match.participant2_id)
+  )
+
+  const withVideo = (participant) => {
+    if (!participant) return null
+    const openingId = normalizeId(participant.opening_id)
+    return {
+      ...participant.toObject(),
+      video_url: participant.video_url || openingVideos.get(openingId) || null
+    }
+  }
+
+  return {
+    _id: match._id,
+    id: match._id,
+    round: match.round,
+    match_number: match.match_number,
+    status: match.status,
+    winner_id: match.winner_id,
+    participant1: withVideo(participant1),
+    participant2: withVideo(participant2)
+  }
+}
+
+const cleanupRoomTournamentData = async (room) => {
+  const tournamentId = room.tournament_id?._id || room.tournament_id
+  const matches = await Match.find({ tournament_id: tournamentId }, '_id')
+  const matchIds = matches.map((match) => match._id)
+
+  if (matchIds.length > 0) {
+    await Vote.deleteMany({ match_id: { $in: matchIds } })
+  }
+
+  await Match.deleteMany({ tournament_id: tournamentId })
+  await Room.findByIdAndDelete(room._id)
+  await Tournament.findByIdAndDelete(tournamentId)
+}
 
 /**
  * Configura los eventos de Socket.IO para las salas de votación con sistema de host
@@ -48,6 +109,8 @@ export function setupRoomSocket(io) {
 
         // Unir el socket al canal de la sala
         socket.join(inviteCode)
+        socket.data.userId = userId
+        socket.data.inviteCode = inviteCode
         console.log(`✓ Usuario ${userId} en sala ${inviteCode}`)
 
         // Emitir lista actualizada de usuarios a toda la sala
@@ -110,19 +173,22 @@ export function setupRoomSocket(io) {
           tournament_id: tournament._id,
           round: 1,
           match_number: 1
-        }).populate('participant1_id').populate('participant2_id')
+        })
 
         if (firstMatch) {
           room.current_match_id = firstMatch._id
           await room.save()
         }
 
+        const tournamentWithParticipants = await Tournament.findById(tournament._id)
+        const currentMatch = await mapMatchForClient(firstMatch, tournamentWithParticipants)
+
         console.log(`✓ Torneo iniciado: ${inviteCode}`)
 
         // Emitir evento a toda la sala
         io.to(inviteCode).emit('tournament_started', {
           tournament: tournament,
-          currentMatch: firstMatch,
+          currentMatch,
           status: 'voting'
         })
       } catch (error) {
@@ -139,21 +205,47 @@ export function setupRoomSocket(io) {
       try {
         const { inviteCode, matchId, participantId, userId } = data
 
+        console.log('submit_vote recibido:', { inviteCode, matchId, participantId, userId })
+        console.log('Tipos:', typeof matchId, typeof participantId, typeof userId)
+
+        if (!inviteCode || !matchId || !participantId || !userId) {
+          socket.emit('error', { message: 'Parametros incompletos para votar' })
+          return
+        }
+
+        if (
+          !mongoose.Types.ObjectId.isValid(matchId) ||
+          !mongoose.Types.ObjectId.isValid(participantId) ||
+          !mongoose.Types.ObjectId.isValid(userId)
+        ) {
+          socket.emit('error', { message: 'IDs inválidos para votar' })
+          return
+        }
+
+        const matchObjectId = new mongoose.Types.ObjectId(matchId)
+        const participantObjectId = new mongoose.Types.ObjectId(participantId)
+        const userObjectId = new mongoose.Types.ObjectId(userId)
+
         // Guardar/actualizar el voto (upsert para evitar duplicados)
         await Vote.findOneAndUpdate(
-          { match_id: matchId, user_id: userId },
-          { participant_id: participantId },
+          { match_id: matchObjectId, user_id: userObjectId },
+          { participant_id: participantObjectId },
           { upsert: true, new: true }
         )
 
         // Contar votos de cada participante en este match
         const voteStats = await Vote.aggregate([
-          { $match: { match_id: matchId } },
+          { $match: { match_id: matchObjectId } },
           { $group: { _id: '$participant_id', count: { $sum: 1 } } }
         ])
 
         // Obtener IDs de los participantes del match
-        const match = await Match.findById(matchId)
+        const match = await Match.findById(matchObjectId)
+
+        if (!match) {
+          socket.emit('error', { message: 'Match no encontrado para voto' })
+          return
+        }
 
         let votes_p1 = 0
         let votes_p2 = 0
@@ -210,8 +302,6 @@ export function setupRoomSocket(io) {
 
         // Obtener el match actual
         const currentMatch = await Match.findById(room.current_match_id)
-          .populate('participant1_id')
-          .populate('participant2_id')
 
         if (!currentMatch) {
           socket.emit('error', { message: 'Match actual no encontrado' })
@@ -237,7 +327,9 @@ export function setupRoomSocket(io) {
           round: currentMatch.round,
           match_number: currentMatch.match_number + 1,
           status: 'pending'
-        }).populate('participant1_id').populate('participant2_id')
+        })
+
+        const tournamentWithParticipants = await Tournament.findById(room.tournament_id._id)
 
         if (nextMatch) {
           // Hay más matches en esta ronda
@@ -250,16 +342,16 @@ export function setupRoomSocket(io) {
           console.log(`✓ Avanzado a siguiente match: ${nextMatch._id}`)
 
           io.to(inviteCode).emit('match_changed', {
-            currentMatch: nextMatch,
+            currentMatch: await mapMatchForClient(nextMatch, tournamentWithParticipants),
             status: 'voting'
           })
         } else {
           // Buscar siguiente ronda
-          const nextRoundMatch = await Match.findOne({
-            tournament_id: room.tournament_id._id,
-            round: currentMatch.round + 1,
-            status: 'pending'
-          }).populate('participant1_id').populate('participant2_id')
+            const nextRoundMatch = await Match.findOne({
+              tournament_id: room.tournament_id._id,
+              round: currentMatch.round + 1,
+              status: 'pending'
+            })
 
           if (nextRoundMatch) {
             // Hay siguiente ronda
@@ -272,7 +364,7 @@ export function setupRoomSocket(io) {
             console.log(`✓ Pasada a siguiente ronda: ${nextRoundMatch._id}`)
 
             io.to(inviteCode).emit('match_changed', {
-              currentMatch: nextRoundMatch,
+              currentMatch: await mapMatchForClient(nextRoundMatch, tournamentWithParticipants),
               status: 'voting'
             })
           } else {
@@ -307,6 +399,39 @@ export function setupRoomSocket(io) {
     socket.on('disconnect', async () => {
       try {
         console.log(`✓ Usuario desconectado: ${socket.id}`)
+
+        const disconnectedUserId = socket.data.userId
+        if (!disconnectedUserId) return
+
+        const rooms = await Room.find({ connected_users: disconnectedUserId })
+
+        for (const room of rooms) {
+          room.connected_users = room.connected_users.filter(
+            (connectedUserId) => normalizeId(connectedUserId) !== normalizeId(disconnectedUserId)
+          )
+
+          const hostLeft = normalizeId(room.host_user_id) === normalizeId(disconnectedUserId)
+
+          if (room.connected_users.length === 0 || hostLeft) {
+            await cleanupRoomTournamentData(room)
+            io.to(room.invite_code).emit('room_closed', {
+              message: 'La sala se cerró por inactividad o salida del host',
+              reason: hostLeft ? 'host_left' : 'empty_room'
+            })
+            console.log('Torneo y sala eliminados:', room.invite_code)
+            continue
+          }
+
+          await room.save()
+          const updatedRoom = await Room.findById(room._id).populate('connected_users', 'username email')
+
+          io.to(room.invite_code).emit('room_updated', {
+            connected_users: updatedRoom?.connected_users || [],
+            users_count: updatedRoom?.connected_users?.length || 0,
+            status: updatedRoom?.status || 'waiting',
+            host_user_id: updatedRoom?.host_user_id || null
+          })
+        }
       } catch (error) {
         console.error('Error en disconnect:', error)
       }
@@ -333,44 +458,24 @@ export function setupRoomSocket(io) {
           u => u.toString() !== userId
         )
 
-        // Si era el host
-        if (room.host_user_id.toString() === userId) {
-          // Cambiar estado de la sala a 'closed'
-          room.status = 'closed'
-
-          // Cambiar estado del torneo a 'cancelled'
-          const tournament = await Tournament.findByIdAndUpdate(
-            room.tournament_id._id,
-            { status: 'cancelled' },
-            { new: true }
-          )
-
-          await room.save()
-
-          console.log(`✓ Host abandonó la sala: ${inviteCode}`)
-
-          // Emitir evento a toda la sala
+        const hostLeft = normalizeId(room.host_user_id) === normalizeId(userId)
+        if (room.connected_users.length === 0 || hostLeft) {
+          await cleanupRoomTournamentData(room)
           io.to(inviteCode).emit('room_closed', {
-            message: 'El host ha abandonado la sala',
-            reason: 'host_left'
+            message: 'La sala se cerró por inactividad o salida del host',
+            reason: hostLeft ? 'host_left' : 'empty_room'
           })
-
-          // Eliminar la sala de la BD
-          await Room.findByIdAndDelete(room._id)
+          console.log('Torneo y sala eliminados:', room.invite_code)
         } else {
-          // No era host, solo remover de la lista
           await room.save()
-
           console.log(`✓ Usuario abandonó la sala: ${inviteCode}`)
 
-          // Emitir lista actualizada
-          const updatedRoom = await Room.findById(room._id)
-            .populate('connected_users', 'username email')
-
+          const updatedRoom = await Room.findById(room._id).populate('connected_users', 'username email')
           io.to(inviteCode).emit('room_updated', {
             connected_users: updatedRoom.connected_users,
             users_count: updatedRoom.connected_users.length,
-            status: updatedRoom.status
+            status: updatedRoom.status,
+            host_user_id: updatedRoom.host_user_id
           })
         }
 
