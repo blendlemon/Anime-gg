@@ -13,7 +13,28 @@ export const proxyVideo = async (req, res) => {
     }
 
     const decodedUrl = decodeURIComponent(url)
-    const response = await fetch(decodedUrl, {
+    let parsedUrl
+    try {
+      parsedUrl = new URL(decodedUrl)
+    } catch {
+      return res.status(400).json({ error: 'URL inválida' })
+    }
+
+    const allowedOrigins = {
+      'animethemes.moe': 'https://animethemes.moe',
+      'v.animethemes.moe': 'https://v.animethemes.moe',
+      'files.animethemes.moe': 'https://files.animethemes.moe'
+    }
+    const safeOrigin = allowedOrigins[parsedUrl.hostname]
+    const isHttps = parsedUrl.protocol === 'https:'
+    const allowedHost = Boolean(safeOrigin)
+
+    if (!isHttps || !allowedHost) {
+      return res.status(400).json({ error: 'URL de vídeo no permitida' })
+    }
+
+    const safeUrl = `${safeOrigin}${parsedUrl.pathname}${parsedUrl.search}`
+    const response = await fetch(safeUrl, {
       headers: {
         Referer: 'https://animethemes.moe/',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',

@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import { rateLimit } from 'express-rate-limit'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import { connectDB } from './config/mongodb.js'
@@ -22,6 +23,16 @@ const io = new Server(httpServer, {
   }
 })
 const PORT = process.env.PORT || 5001
+const cleanupRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 1,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: 'Demasiadas solicitudes, intenta de nuevo en 1 minuto'
+  }
+})
 
 // Middleware
 app.use(cors())
@@ -50,7 +61,7 @@ app.use('/api/tournaments', tournamentsRouter)
 app.use('/api/anime', animeRoutes)
 app.use('/api/rooms', roomRoutes)
 app.get('/api/proxy/video', proxyVideo)
-app.get('/api/admin/cleanup', cleanupOrphanedTournaments)
+app.get('/api/admin/cleanup', cleanupRateLimit, cleanupOrphanedTournaments)
 
 // 404 handler
 app.use('*', (req, res) => {
