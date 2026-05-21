@@ -45,7 +45,7 @@ export const RoomPage = () => {
   const getVideoUrl = (participant) => {
     const videoUrl = participant?.video_url || participant?.opening_id?.video_url
     if (!videoUrl) return null
-    return `http://localhost:5001/api/proxy/video?url=${encodeURIComponent(videoUrl)}`
+    return `${import.meta.env.VITE_API_URL}/proxy/video?url=${encodeURIComponent(videoUrl)}`
   }
 
   // Conectar a la sala cuando Socket.IO esté listo

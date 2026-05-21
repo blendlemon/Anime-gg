@@ -3,7 +3,7 @@
  * Funciones fetch que consumen los endpoints del backend
  */
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api'
 
 /**
  * Busca animes y obtiene sus openings
