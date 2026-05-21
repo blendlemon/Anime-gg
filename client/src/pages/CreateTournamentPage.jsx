@@ -6,6 +6,7 @@ import { tournamentAPI } from '../utils/api'
 // Página para crear nuevo torneo
 export const CreateTournamentPage = () => {
   const navigate = useNavigate()
+  const appUrl = (import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/$/, '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -57,7 +58,7 @@ export const CreateTournamentPage = () => {
 
   // Copiar enlace de sala
   const copyRoomLink = () => {
-    const roomLink = `http://localhost:5173/room/${inviteCode}`
+    const roomLink = `${appUrl}/room/${inviteCode}`
     navigator.clipboard.writeText(roomLink)
     alert('¡Enlace de sala copiado al portapapeles!')
   }

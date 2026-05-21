@@ -2,7 +2,37 @@ import AnimeOpening from '../models/AnimeOpening.js'
 import Tournament from '../models/Tournament.js'
 import Room from '../models/Room.js'
 import fetch from 'node-fetch'
+import fs from 'fs'
+import fsPromises from 'fs/promises'
 import { searchOpenings, getAnimeBySlug } from '../utils/animeThemesService.js'
+import { resolveCachedVideoPath } from '../utils/videoCache.js'
+
+const streamLocalVideo = async (filePath, req, res) => {
+  const stats = await fsPromises.stat(filePath)
+  const fileSize = stats.size
+  const range = req.headers.range
+
+  res.setHeader('Content-Type', 'video/webm')
+  res.setHeader('Accept-Ranges', 'bytes')
+
+  if (range) {
+    const [startStr, endStr] = range.replace('bytes=', '').split('-')
+    const start = Number.parseInt(startStr, 10)
+    const end = endStr ? Number.parseInt(endStr, 10) : fileSize - 1
+
+    if (Number.isNaN(start) || Number.isNaN(end) || start > end || end >= fileSize) {
+      return res.status(416).end()
+    }
+
+    res.status(206)
+    res.setHeader('Content-Range', `bytes ${start}-${end}/${fileSize}`)
+    res.setHeader('Content-Length', end - start + 1)
+    return fs.createReadStream(filePath, { start, end }).pipe(res)
+  }
+
+  res.setHeader('Content-Length', fileSize)
+  return fs.createReadStream(filePath).pipe(res)
+}
 
 export const proxyVideo = async (req, res) => {
   try {
@@ -13,6 +43,23 @@ export const proxyVideo = async (req, res) => {
     }
 
     const decodedUrl = decodeURIComponent(url)
+
+    if (decodedUrl.startsWith('cache://')) {
+      const localVideoPath = resolveCachedVideoPath(decodedUrl)
+
+      if (!localVideoPath) {
+        return res.status(400).json({ error: 'URL de caché inválida' })
+      }
+
+      try {
+        await fsPromises.access(localVideoPath)
+      } catch {
+        return res.status(404).json({ error: 'Vídeo temporal no encontrado' })
+      }
+
+      return streamLocalVideo(localVideoPath, req, res)
+    }
+
     let parsedUrl
     try {
       parsedUrl = new URL(decodedUrl)

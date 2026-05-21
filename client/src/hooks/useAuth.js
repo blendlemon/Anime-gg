@@ -16,12 +16,14 @@ export const useAuth = () => {
 export const useSocket = () => {
   const [socket, setSocket] = useState(null)
   const { token, user } = useAuth()
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api'
+  const socketUrl = (import.meta.env.VITE_SOCKET_URL || apiUrl.replace(/\/api\/?$/, '')).replace(/\/$/, '')
 
   useEffect(() => {
     if (!token || !user) return
 
     // Conectar a Socket.IO
-    const newSocket = io('http://localhost:5001', {
+    const newSocket = io(socketUrl, {
       auth: {
         token
       }
@@ -40,7 +42,7 @@ export const useSocket = () => {
     return () => {
       newSocket.disconnect()
     }
-  }, [token, user])
+  }, [token, user, socketUrl])
 
   // Funciones para interactuar con Socket.IO
 

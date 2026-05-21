@@ -39,6 +39,8 @@ const tournamentSchema = new mongoose.Schema({
       title: String,
       anime_title: String,
       artist: String,
+      video_url: String,
+      cached_video_url: String,
       thumbnail_url: String,
       wins: {
         type: Number,
@@ -57,4 +59,3 @@ const tournamentSchema = new mongoose.Schema({
 }, { timestamps: true })
 
 export default mongoose.model('Tournament', tournamentSchema)
-

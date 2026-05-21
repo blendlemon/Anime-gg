@@ -1,4 +1,5 @@
 import express from 'express'
+import { rateLimit } from 'express-rate-limit'
 import { auth } from '../middleware/auth.js'
 import {
   createTournament,
@@ -8,9 +9,15 @@ import {
 } from '../controllers/tournamentController.js'
 
 const router = express.Router()
+const createTournamentRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false
+})
 
 // POST /api/tournaments - Crear torneo (requiere auth)
-router.post('/', auth, createTournament)
+router.post('/', createTournamentRateLimit, auth, createTournament)
 
 // GET /api/tournaments/:id - Obtener torneo
 router.get('/:id', getTournament)

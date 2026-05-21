@@ -2,6 +2,7 @@ import Tournament from '../models/Tournament.js'
 import Match from '../models/Match.js'
 import AnimeOpening from '../models/AnimeOpening.js'
 import Room from '../models/Room.js'
+import { ensureTournamentVideoCache, clearTournamentVideoCache } from '../utils/videoCache.js'
 
 // Función auxiliar para generar invite code aleatorio
 const generateInviteCode = () => {
@@ -135,6 +136,15 @@ export const createTournament = async (req, res) => {
     })
 
     await newTournament.save()
+
+    try {
+      await ensureTournamentVideoCache(newTournament._id, newTournament.participants)
+      await newTournament.save()
+    } catch (cacheError) {
+      await clearTournamentVideoCache(newTournament._id)
+      await Tournament.findByIdAndDelete(newTournament._id)
+      throw new Error(`No se pudieron preparar los vídeos: ${cacheError.message}`)
+    }
 
     // Obtener los participantes guardados (ahora tienen _id)
     const savedParticipants = newTournament.participants
