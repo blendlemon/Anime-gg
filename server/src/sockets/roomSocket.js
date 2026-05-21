@@ -4,6 +4,7 @@ import Vote from '../models/Vote.js'
 import Tournament from '../models/Tournament.js'
 import AnimeOpening from '../models/AnimeOpening.js'
 import mongoose from 'mongoose'
+import { clearTournamentVideoCache } from '../utils/videoCache.js'
 
 const normalizeId = (value) => {
   if (!value) return ''
@@ -35,7 +36,7 @@ const mapMatchForClient = async (match, tournament) => {
     const openingId = normalizeId(participant.opening_id)
     return {
       ...participant.toObject(),
-      video_url: participant.video_url || openingVideos.get(openingId) || null
+      video_url: participant.cached_video_url || participant.video_url || openingVideos.get(openingId) || null
     }
   }
 
@@ -63,6 +64,7 @@ const cleanupRoomTournamentData = async (room) => {
   await Match.deleteMany({ tournament_id: tournamentId })
   await Room.findByIdAndDelete(room._id)
   await Tournament.findByIdAndDelete(tournamentId)
+  await clearTournamentVideoCache(tournamentId)
 }
 
 /**
@@ -205,9 +207,6 @@ export function setupRoomSocket(io) {
       try {
         const { inviteCode, matchId, participantId, userId } = data
 
-        console.log('submit_vote recibido:', { inviteCode, matchId, participantId, userId })
-        console.log('Tipos:', typeof matchId, typeof participantId, typeof userId)
-
         if (!inviteCode || !matchId || !participantId || !userId) {
           socket.emit('error', { message: 'Parametros incompletos para votar' })
           return
@@ -268,7 +267,7 @@ export function setupRoomSocket(io) {
             participant1: votes_p1,
             participant2: votes_p2
           },
-          totalVoters: voteStats.length
+          totalVoters: votes_p1 + votes_p2
         })
       } catch (error) {
         console.error('Error en submit_vote:', error)
@@ -316,9 +315,18 @@ export function setupRoomSocket(io) {
         ])
 
         if (voteStats.length > 0) {
-          currentMatch.winner_id = voteStats[0]._id
+          const winnerId = voteStats[0]._id
+          currentMatch.winner_id = winnerId
           currentMatch.status = 'completed'
           await currentMatch.save()
+
+          await Tournament.findOneAndUpdate(
+            {
+              _id: room.tournament_id._id,
+              'participants._id': winnerId
+            },
+            { $inc: { 'participants.$.wins': 1 } }
+          )
         }
 
         // Buscar el siguiente match
@@ -385,6 +393,8 @@ export function setupRoomSocket(io) {
               tournament: tournament,
               status: 'results'
             })
+
+            await clearTournamentVideoCache(room.tournament_id._id)
           }
         }
       } catch (error) {

@@ -8,6 +8,7 @@ import { useAuth } from '../hooks/useAuth'
 export const RoomPage = () => {
   const { inviteCode } = useParams()
   const navigate = useNavigate()
+  const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5001/api').replace(/\/$/, '')
   const { user } = useAuth()
   const {
     socket,
@@ -44,8 +45,12 @@ export const RoomPage = () => {
 
   const getVideoUrl = (participant) => {
     const videoUrl = participant?.video_url || participant?.opening_id?.video_url
-    if (!videoUrl) return null
-    return `${import.meta.env.VITE_API_URL}/proxy/video?url=${encodeURIComponent(videoUrl)}`
+    if (!videoUrl || videoUrl === 'undefined' || videoUrl === 'null') return null
+    return `${apiUrl}/proxy/video?url=${encodeURIComponent(videoUrl)}`
+  }
+
+  const getParticipantId = (participant) => {
+    return participant?._id || participant?.id || null
   }
 
   // Conectar a la sala cuando Socket.IO esté listo
@@ -110,9 +115,14 @@ export const RoomPage = () => {
     onTournamentEnded((data) => {
       console.log('Tournament ended:', data)
       setRoomStatus('results')
+      const tournamentId = data?.tournament?._id
       // Navegar a página de ranking en 2 segundos
       setTimeout(() => {
-        navigate('/ranking')
+        if (tournamentId) {
+          navigate(`/ranking/${tournamentId}`)
+          return
+        }
+        navigate('/home')
       }, 2000)
     })
 
@@ -131,6 +141,11 @@ export const RoomPage = () => {
 
   // Manejar voto
   const handleVote = (participantId) => {
+    if (!participantId) {
+      setError('No se pudo identificar el participante para votar')
+      return
+    }
+
     if (!hasVoted && currentMatch && userId) {
       submitVote(inviteCode, currentMatch._id, participantId, userId)
       setHasVoted(true)
@@ -378,7 +393,7 @@ export const RoomPage = () => {
 
                 <button
                   onClick={() =>
-                    handleVote(currentMatch.participant1?._id)
+                    handleVote(getParticipantId(currentMatch.participant1))
                   }
                   disabled={hasVoted}
                   className="w-full py-4 bg-violet-600 hover:bg-violet-700 disabled:bg-zinc-700 text-white font-bold rounded-xl transition text-lg"
@@ -434,7 +449,7 @@ export const RoomPage = () => {
 
                 <button
                   onClick={() =>
-                    handleVote(currentMatch.participant2?._id)
+                    handleVote(getParticipantId(currentMatch.participant2))
                   }
                   disabled={hasVoted}
                   className="w-full py-4 bg-violet-600 hover:bg-violet-700 disabled:bg-zinc-700 text-white font-bold rounded-xl transition text-lg"

@@ -16,9 +16,10 @@ dotenv.config()
 
 const app = express()
 const httpServer = createServer(app)
+const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173'
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: clientUrl,
     methods: ['GET', 'POST']
   }
 })
@@ -33,9 +34,15 @@ const cleanupRateLimit = rateLimit({
     error: 'Demasiadas solicitudes, intenta de nuevo en 1 minuto'
   }
 })
+const proxyRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: true,
+  legacyHeaders: false
+})
 
 // Middleware
-app.use(cors())
+app.use(cors({ origin: clientUrl }))
 app.use(express.json())
 
 // Conectar a MongoDB
@@ -60,7 +67,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/tournaments', tournamentsRouter)
 app.use('/api/anime', animeRoutes)
 app.use('/api/rooms', roomRoutes)
-app.get('/api/proxy/video', proxyVideo)
+app.get('/api/proxy/video', proxyRateLimit, proxyVideo)
 app.get('/api/admin/cleanup', cleanupRateLimit, cleanupOrphanedTournaments)
 
 // 404 handler
