@@ -19,8 +19,8 @@ export const auth = (req, res, next) => {
     // Usar el mismo secret en todas partes
     const secret = process.env.JWT_SECRET || 'secret'
     const decoded = jwt.verify(token, secret)
-    req.user = { id: decoded.id }
-    console.log(`✓ Token válido para usuario: ${decoded.id}`)
+    req.user = { id: decoded.userId, userId: decoded.userId }
+    console.log(`✓ Token válido para usuario: ${decoded.userId}`)
     next()
   } catch (error) {
     console.error('❌ Error de autenticación:', error.message)

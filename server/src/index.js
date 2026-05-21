@@ -6,6 +6,8 @@ import { Server } from 'socket.io'
 import { connectDB } from './config/mongodb.js'
 import tournamentsRouter from './routes/tournamentRoutes.js'
 import animeRoutes from './routes/animeRoutes.js'
+import authRoutes from './routes/authRoutes.js'
+import roomRoutes from './routes/roomRoutes.js'
 import setupRoomSocket from './sockets/roomSocket.js'
 
 dotenv.config()
@@ -42,8 +44,10 @@ app.get('/api/health', (req, res) => {
 })
 
 // Routes
+app.use('/api/auth', authRoutes)
 app.use('/api/tournaments', tournamentsRouter)
 app.use('/api/anime', animeRoutes)
+app.use('/api/rooms', roomRoutes)
 
 // 404 handler
 app.use('*', (req, res) => {

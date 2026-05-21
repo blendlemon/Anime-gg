@@ -21,8 +21,14 @@ const roomSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['waiting', 'voting', 'results'],
+    enum: ['waiting', 'voting', 'results', 'closed', 'cancelled'],
     default: 'waiting'
+  },
+  // Usuario que hosts la sala (puede cerrarla/iniciar torneo)
+  host_user_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
   },
   connected_users: [
     {

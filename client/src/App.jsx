@@ -1,18 +1,65 @@
-import { useState } from 'react'
-import './App.css'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
+import { ProtectedRoute } from './components/ProtectedRoute'
+import { LoginPage } from './pages/LoginPage'
+import { HomePage } from './pages/HomePage'
+import { CreateTournamentPage } from './pages/CreateTournamentPage'
+import { TournamentPage } from './pages/TournamentPage'
+import { RoomPage } from './pages/RoomPage'
+import { RankingPage } from './pages/RankingPage'
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold mb-8">Anime Openings Tournament</h1>
-        <div className="bg-gray-800 p-6 rounded-lg">
-          <p className="text-lg">Welcome to the bracket tournament</p>
-        </div>
-      </div>
-    </div>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <AuthProvider>
+        <Routes>
+          {/* Rutas públicas */}
+          <Route path="/" element={<LoginPage />} />
+
+          {/* Rutas protegidas */}
+          <Route
+            path="/home"
+            element={
+              <ProtectedRoute>
+                <HomePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/create"
+            element={
+              <ProtectedRoute>
+                <CreateTournamentPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tournament/:id"
+            element={
+              <ProtectedRoute>
+                <TournamentPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/room/:inviteCode"
+            element={
+              <ProtectedRoute>
+                <RoomPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ranking/:id"
+            element={
+              <ProtectedRoute>
+                <RankingPage />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </AuthProvider>
+    </Router>
   )
 }
 
