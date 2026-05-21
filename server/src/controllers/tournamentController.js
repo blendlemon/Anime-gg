@@ -141,9 +141,11 @@ export const createTournament = async (req, res) => {
       await ensureTournamentVideoCache(newTournament._id, newTournament.participants)
       await newTournament.save()
     } catch (cacheError) {
+      console.warn('No se pudieron cachear todos los vídeos del torneo:', cacheError.message)
       await clearTournamentVideoCache(newTournament._id)
-      await Tournament.findByIdAndDelete(newTournament._id)
-      throw new Error(`No se pudieron preparar los vídeos: ${cacheError.message}`)
+      newTournament.participants.forEach((participant) => {
+        participant.cached_video_url = undefined
+      })
     }
 
     // Obtener los participantes guardados (ahora tienen _id)
