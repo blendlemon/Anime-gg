@@ -91,6 +91,13 @@ export const tournamentAPI = {
   }
 }
 
+// SALAS
+export const roomAPI = {
+  getOpen: async () => {
+    return apiRequest('/rooms/open/list')
+  }
+}
+
 // SALUD DEL SERVIDOR
 export const healthAPI = {
   check: async () => {

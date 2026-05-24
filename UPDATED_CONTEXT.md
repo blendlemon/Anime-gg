@@ -1,174 +1,116 @@
-# Anime Openings Tournament - Project Context (ACTUALIZADO 20/05/2026)
+# Anime Openings Tournament - Project Context
 
-## 📋 Descripción General
-App full-stack para gestionar un torneo eliminatorio de openings de anime con votación en tiempo real usando WebSockets.
+## Descripción General
+App full-stack para torneo eliminatorio de openings de anime con votación en tiempo real vía WebSockets.
 
 ### Stack Tecnológico
-- **Frontend**: React + Vite + Tailwind CSS
-- **Backend**: Node.js + Express + MongoDB + Socket.IO
-- **Base de Datos**: MongoDB (Docker)
-- **API Externa**: AnimeThemes API (https://api.animethemes.moe) ✅ **INTEGRADA Y FUNCIONANDO**
+- **Frontend:** React 18 + Vite 5 + Tailwind CSS 3 + Socket.IO Client
+- **Backend:** Node.js + Express 4 + MongoDB (Mongoose 8) + Socket.IO 4
+- **Base de Datos:** MongoDB Atlas (cloud)
+- **API Externa:** AnimeThemes API (https://api.animethemes.moe)
+- **Package Manager:** pnpm
 
 ---
 
-## 📁 Estructura del Proyecto
+## Estructura del Proyecto
 
-### /server
-`
-server/
-├── src/
-│   ├── index.js (punto de entrada con Socket.IO + Express)
-│   ├── config/
-│   │   └── mongodb.js (conexión a MongoDB)
-│   ├── models/
-│   │   ├── User.js
-│   │   ├── AnimeOpening.js
-│   │   ├── Tournament.js
-│   │   ├── TournamentParticipant.js
-│   │   ├── Match.js
-│   │   ├── Vote.js
-│   │   └── Room.js ✅
-│   ├── controllers/
-│   │   ├── tournamentController.js
-│   │   ├── matchController.js
-│   │   ├── voteController.js
-│   │   └── animeController.js ✅
-│   ├── routes/
-│   │   ├── index.js
-│   │   ├── tournamentRoutes.js
-│   │   ├── matchRoutes.js
-│   │   ├── voteRoutes.js
-│   │   └── animeRoutes.js ✅
-│   ├── utils/
-│   │   └── animeThemesService.js ✅ COMPLETAMENTE REPARADO
-│   ├── sockets/
-│   │   └── roomSocket.js ✅
-│   ├── middleware/
-│   │   └── errorHandler.js
-│   └── database/
-│       └── seed.js (datos de prueba)
-├── docker-compose.yml ✅
-├── init-mongo.js ✅
-└── package.json ✅
-`
+```
+proyecto-con-ai/
+├── client/                    # Frontend React + Vite + Tailwind
+│   └── src/
+│       ├── main.jsx
+│       ├── App.jsx            # Router (Login, Home, CreateTournament, Tournament, Room, Ranking)
+│       ├── context/AuthContext.jsx
+│       ├── hooks/useAuth.js, useAnimeSearch.js
+│       ├── utils/api.js, animeApi.js
+│       ├── pages/             # 6 pages
+│       ├── components/        # Navbar, ProtectedRoute, OpeningCard, BracketView, etc.
+│       └── styles/index.css
+└── server/                    # Backend Express + MongoDB + Socket.IO
+    └── src/
+        ├── index.js           # Entry point
+        ├── config/mongodb.js  # Conexión Mongoose
+        ├── models/            # 7 modelos
+        ├── controllers/       # anime, auth, tournament, room
+        ├── routes/            # anime, auth, tournament, room
+        ├── sockets/roomSocket.js  # Eventos Socket.IO
+        ├── middleware/auth.js     # JWT middleware
+        └── utils/animeThemesService.js, videoCache.js
+```
 
 ---
 
-## 🔗 API Endpoints - **TODOS FUNCIONALES ✅**
+## API Endpoints
 
-### Anime Endpoints (TESTEADOS)
-\\\
-✅ GET /api/anime/search?q={query}
-   Busca en AnimeThemes y guarda nuevos openings en MongoDB
-   Ejemplo: GET /api/anime/search?q=Demon%20Slayer → 55 openings encontrados
+### Auth
+```
+POST /api/auth/register  → { username, email, password }
+POST /api/auth/login     → { email, password } → { token, user }
+```
 
-✅ GET /api/anime?slug={slug}
-   Obtiene todos los openings de un anime específico
-   Ejemplo: GET /api/anime?slug=kimetsu-no-yaiba → 50 openings
+### Anime (AnimeThemes)
+```
+GET  /api/anime/search?q={query}   → Buscar y guardar en MongoDB
+GET  /api/anime/anime?slug={slug}  → Openings por slug
+GET  /api/anime                    → Listar todos (paginación)
+```
 
-✅ GET /api/anime
-   Lista todos los openings guardados en MongoDB
-\\\
+### Tournaments
+```
+POST /api/tournaments              → Crear torneo (Auth, sizes: 8/16/32)
+GET  /api/tournaments/:id          → Detalle con participantes y matches
+GET  /api/tournaments/:id/ranking  → Ranking por victorias
+```
 
-### Respuesta Ejemplo
-\\\json
-{
-  "success": true,
-  "data": [
-    {
-      "_id": "6a0da9c67d0699a601081a10",
-      "title": "Guren no Yumiya",
-      "anime_title": "Kimetsu no Yaiba",
-      "anime_slug": "kimetsu-no-yaiba",
-      "type": "OP",
-      "sequence": 1,
-      "artist": "Aimer",
-      "year": 2019,
-      "season": "Spring",
-      "video_url": "https://v.animethemes.moe/KimetsuNoYaiba-OP1.webm",
-      "thumbnail_url": "https://pub-92474f77857...",
-      "source": "animethemes",
-      "createdAt": "2026-05-20T12:32:06.329Z"
-    }
-  ]
-}
-\\\
+### Rooms
+```
+GET  /api/rooms/open/list          → Salas abiertas
+GET  /api/rooms/:inviteCode        → Obtener sala
+```
 
 ---
 
-## 🔌 Socket.IO Events - **IMPLEMENTADOS ✅**
+## Socket.IO Events
 
 ### Client → Server
-\\\
-• join_room: Unirse a una sala con invite_code
-• start_vote: Host inicia la votación del match actual
-• submit_vote: Usuario vota por participant_id
-• next_match: Avanzar al siguiente enfrentamiento
-\\\
+- `join_room`: Unirse a sala
+- `start_tournament`: Host inicia torneo
+- `skip_p1`: Saltar primer opening
+- `video_ended`: Vídeo terminó (participant: 1|2)
+- `p2_ready`: P2 empezó a reproducirse
+- `submit_vote`: Votar por un participant_id
+- `leave_room`: Salir de la sala
 
 ### Server → Client
-\\\
-• vote_update: Actualización de votos en tiempo real
-• tournament_end: Torneo finalizado con ranking final
-• user_connected: Usuario se conectó a la sala
-• disconnect: Usuario desconectado
-\\\
+- `room_updated`: Estado de sala
+- `tournament_started`: Torneo iniciado
+- `p1_skip_update`: Progreso de skip
+- `p1_skipped`: P1 saltado
+- `p2_ended`: P2 terminó (votación 10s)
+- `vote_update`: Conteo de votos
+- `match_changed`: Siguiente match
+- `tournament_ended`: Resultados finales
+- `room_closed`: Sala cerrada
+- `error`: Error
 
 ---
 
-## 📝 Notas Técnicas Críticas
+## Notas Técnicas
 
-### AnimeThemes API ✅ REPARADO Y FUNCIONANDO
+### AnimeThemes API
+- `/search`: `{ search: { anime: [...] } }`
+- `/anime/{slug}`: `{ anime: {...} }`
+- Video URL: `https://v.animethemes.moe/{basename}`
+- Sin proxy de vídeo (reproducción directa desde CDN)
+- Sincronización programada cada 6h
 
-**Problema Identificado:** El servicio estaba parseando JSON:API (con \data.data\ e \data.included\) pero AnimeThemes devuelve estructura simple.
-
-**Solución Implementada en animeThemesService.js:**
-
-1. **Response Structure:**
-   - \/search\: \{ search: { anime: [...] } }\
-   - \/anime/{slug}\: \{ anime: {...} }\
-
-2. **Video URL Construction:**
-   - URL NO viene en un campo \link\
-   - Se construye: \https://v.animethemes.moe/{basename}\
-   - Basename: \	heme.animethemeentries[0].videos[0].basename\
-
-3. **Video Selection:**
-   - Se selecciona video con **mayor resolución**
-   - Función: \selectBestVideo(videos)\ ordena descendente
-
-4. **Field Extraction:**
-   - Título: \	heme.song.title\
-   - Artista: \	heme.song.artists[0].name\ (o "" si no existe)
-   - Thumbnail: \nime.images[0].link\ (puede ser null)
-   - Tipo: \	heme.type\ (OP/ED)
-   - Secuencia: \	heme.sequence\
+### Flujo de Votación
+1. **P1** → skip unánime o fin de vídeo → P2
+2. **P2** → votación durante reproducción + 10s tras terminar
+3. Si todos votan antes → avance inmediato
+4. Empate o sin votos → ganador aleatorio
 
 ---
 
-## ✅ Estado Actual - 20/05/2026 14:30 UTC+2
-
-### COMPLETADO ✅
-- ✅ Estructura carpetas (React + Vite + Tailwind)
-- ✅ Estructura carpetas (Express + MongoDB)
-- ✅ BracketView component (React)
-- ✅ Express routes /api/torneos básicas
-- ✅ MongoDB migration (MySQL → MongoDB con Docker)
-- ✅ Room model (Mongoose)
-- ✅ AnimeThemes API service - **COMPLETAMENTE REPARADO**
-- ✅ Anime controllers (3 métodos)
-- ✅ Anime routes (3 endpoints)
-- ✅ Socket.IO integration (6 eventos)
-- ✅ **TESTING: Todos endpoints funcionando 100%**
-
-### PRÓXIMOS PASOS
-- [ ] Frontend Socket.IO client
-- [ ] UI salas (join con invite code)
-- [ ] Componente votación (2 openings)
-- [ ] Real-time votos (barra progreso)
-- [ ] Bracket visual (16→8→4→2→1)
-- [ ] Página resultados
-
----
-
-**Última actualización:** 20 de mayo de 2026 - 14:53 UTC+2
+**Última actualización:** 24 de mayo de 2026
+**Puerto Backend:** 5001 | **Puerto Frontend:** 5173

@@ -1,173 +1,126 @@
-# ✅ TAREAS COMPLETADAS - Backend Anime Tournament
+# TAREAS COMPLETADAS - Backend Anime Tournament
 
-## TAREA 1: ✅ LIMPIEZA MySQL
-- ✅ Removidos paquetes MySQL del package.json (ya no estaban presentes)
-- ✅ Eliminado archivo `src/config/database.js` (conexión MySQL)
-- ✅ Eliminada carpeta `src/database/` (scripts SQL)
-- ✅ Ejecutado `pnpm install` - todas las dependencias limpias
-- ✅ Referencias a MySQL eliminadas del código
+## TAREA 1: LIMPIEZA MySQL
+- Removidos paquetes MySQL del package.json
+- Eliminado archivo `src/config/database.js` (conexión MySQL)
+- Eliminada carpeta `src/database/` (scripts SQL)
+- Eliminadas referencias a MySQL del código
 
 **Dependencias actuales:**
-- express, mongoose, mongodb, cors, dotenv, express-validator
-- bcryptjs, jsonwebtoken, socket.io, node-fetch
+- express, mongoose, cors, dotenv, express-validator
+- bcryptjs, jsonwebtoken, socket.io, node-fetch, express-rate-limit
 - nodemon (dev)
 
 ---
 
-## TAREA 2: ✅ MODELO ROOM
-**Archivo:** `src/models/Room.js`
+## TAREA 2: MODELOS MONGOOSE
 
+### Room
 ```javascript
 {
-  tournament_id: ObjectId (ref Tournament) ✓
-  invite_code: String (unique, 8 chars uppercase) ✓
-  current_match_id: ObjectId (ref Match) ✓
-  status: enum ['waiting', 'voting', 'results'] ✓
-  connected_users: [ObjectId] (ref User) ✓
-  timestamps: true ✓
+  tournament_id: ObjectId (ref Tournament),
+  invite_code: String (unique, 8 chars uppercase),
+  current_match_id: ObjectId (ref Match),
+  status: enum ['waiting', 'voting', 'results'],
+  connected_users: [ObjectId] (ref User),
+  timestamps: true
 }
 ```
 
+### Otros modelos: User, AnimeOpening, Tournament, Match, Vote, TournamentParticipant
+
 ---
 
-## TAREA 3: ✅ ANIMETHEMES API
+## TAREA 3: ANIMETHEMES API
 **Archivo:** `src/utils/animeThemesService.js`
 
 ### Funciones:
-1. **searchOpenings(query)**
-   - Llama: `https://api.animethemes.moe/search?q={query}&include[anime]=animethemes.animethemeentries.videos,images`
-   - Retorna: Array de openings formateados
-   - Campos: title, anime_title, anime_slug, year, season, artist, video_url, thumbnail_url, type, sequence
-
-2. **getAnimeBySlug(slug)**
-   - Llama: `https://api.animethemes.moe/anime/{slug}?include=animethemes.animethemeentries.videos`
-   - Retorna: Array de openings del anime formateados
+1. **searchOpenings(query)** - Busca y cachea openings
+2. **getAnimeBySlug(slug)** - Detalle de anime
+3. **syncAllOpenings()** - Sincronización programada cada 6h
+4. **getOpeningVideoUrl()** - Construye URL directa desde CDN (sin proxy)
 
 ---
 
-## TAREA 4: ✅ CONTROLADOR Y RUTAS
-**Archivos:**
-- `src/controllers/animeController.js`
-- `src/routes/animeRoutes.js`
+## TAREA 4: ENDPOINTS
 
-### Controladores:
-1. **searchOpeningsController**
-   - GET `/api/anime/search?q=query`
-   - Busca en AnimeThemes y guarda en MongoDB (upsert por anime_slug + sequence + type)
-   - Retorna: Array de openings guardados
+### Anime
+```
+GET  /api/anime/search?q=    → searchOpeningsController
+GET  /api/anime/anime?slug=  → getAnimeOpeningsController
+GET  /api/anime              → getAllOpeningsController (paginado)
+```
 
-2. **getAnimeOpeningsController**
-   - GET `/api/anime/anime?slug=slug`
-   - Obtiene openings de un anime específico
-   - Busca en BD primero, luego en AnimeThemes si no existe
+### Tournament
+```
+POST /api/tournaments         → createTournament (auth, sizes 8/16/32)
+GET  /api/tournaments/:id     → getTournament
+GET  /api/tournaments/:id/ranking → getRanking
+```
 
-3. **getAllOpeningsController**
-   - GET `/api/anime`
-   - Obtiene todos los openings con paginación opcional (limit, skip, type)
+### Auth
+```
+POST /api/auth/register  → register (bcrypt hash)
+POST /api/auth/login     → login (JWT token)
+```
 
-### Rutas:
-```javascript
-GET  /api/anime/search?q=      → searchOpeningsController
-GET  /api/anime/anime?slug=    → getAnimeOpeningsController
-GET  /api/anime                → getAllOpeningsController
+### Room
+```
+GET  /api/rooms/open/list      → listOpenRooms
+GET  /api/rooms/:inviteCode    → getRoomByInviteCode
 ```
 
 ---
 
-## TAREA 5: ✅ SOCKET.IO
-**Archivos:**
-- `src/sockets/roomSocket.js` (eventos)
-- Integrado en `src/index.js` (HTTP server + Socket.IO)
+## TAREA 5: SOCKET.IO
+**Archivo:** `src/sockets/roomSocket.js`
 
-### Eventos Socket.IO:
+### Eventos:
+1. **join_room** - Unir usuario a sala
+2. **start_tournament** - Host inicia torneo
+3. **skip_p1** - Saltar primer opening (conteo unánime)
+4. **video_ended** - Vídeo terminó (P1→avanza a P2, P2→inicia timer 10s)
+5. **p2_ready** - P2 comenzó a reproducirse
+6. **submit_vote** - Votar por participante (auto-avance si todos votan)
+7. **leave_room** - Salir de sala
+8. **disconnect** - Limpiar conexiones y sala si queda vacía
 
-1. **join_room**
-   - Datos: { invite_code, user_id }
-   - Acción: Unir usuario a sala, añadir a connected_users
-   - Emite: user_joined (a toda la sala)
-
-2. **start_vote**
-   - Datos: { invite_code, match_id }
-   - Acción: Cambiar estado a 'voting', cargar match
-   - Emite: voting_started (con info del match)
-
-3. **submit_vote**
-   - Datos: { invite_code, match_id, participant_id, user_id }
-   - Acción: Crear/actualizar voto en DB
-   - Emite: vote_update (con conteo y datos)
-
-4. **next_match**
-   - Datos: { invite_code, tournament_id }
-   - Acción: Determinar ganador, avanzar al siguiente match o terminar
-   - Emite: match_updated O tournament_end
-
-5. **tournament_end**
-   - Datos: { invite_code, tournament_id }
-   - Acción: Obtener ganador final y ranking
-   - Emite: final_results (con info del ganador)
-
-6. **disconnect**
-   - Acción: Limpiar conexiones y usuarios
-
-### Configuración en `src/index.js`:
-```javascript
-- HTTP server con createServer()
-- Socket.IO con CORS habilitado
-- setupRoomSocket() registrado al iniciar
-- Endpoint: ws://localhost:5000
-```
+### Optimizaciones:
+- Estado de skip/votación en memoria (`Map<inviteCode, RoomState>`)
+- Sin queries DB en `skip_p1` ni `submit_vote` (contadores en Sets)
+- `finalizeMatch` con ganador aleatorio en caso de empate/sin votos
 
 ---
 
-## 📊 ESTRUCTURA FINAL
+## Estructura Final
 
 ```
 server/
 ├── src/
-│   ├── config/
-│   │   └── mongodb.js          ← Conexión MongoDB
-│   │
-│   ├── models/
-│   │   ├── Room.js             ✨ NUEVO
-│   │   ├── User.js
-│   │   ├── AnimeOpening.js
-│   │   ├── Tournament.js
-│   │   ├── TournamentParticipant.js
-│   │   ├── Match.js
-│   │   └── Vote.js
-│   │
-│   ├── controllers/
-│   │   └── animeController.js  ✨ ACTUALIZADO
-│   │
-│   ├── routes/
-│   │   ├── tournaments.js
-│   │   └── animeRoutes.js      ✨ ACTUALIZADO
-│   │
-│   ├── utils/
-│   │   └── animeThemesService.js ✨ ACTUALIZADO
-│   │
-│   ├── sockets/
-│   │   └── roomSocket.js       ✨ NUEVO
-│   │
-│   └── index.js                ✨ ACTUALIZADO (Socket.IO)
-│
+│   ├── config/mongodb.js
+│   ├── models/ (7: User, AnimeOpening, Tournament, TournamentParticipant, Match, Vote, Room)
+│   ├── controllers/ (4: auth, anime, tournament, room)
+│   ├── routes/ (4: auth, anime, tournament, room)
+│   ├── sockets/roomSocket.js
+│   ├── middleware/auth.js
+│   ├── utils/animeThemesService.js, videoCache.js
+│   └── index.js
 ├── seed.js
-├── package.json                ✨ ACTUALIZADO
+├── package.json
 ├── .env
 └── .env.example
 ```
 
 ---
 
-## ✅ VERIFICACIÓN
+## Verificación
 
 **Servidor activo:**
 ```
-✓ MongoDB connected successfully
-✓ Server running on port 5000
-✓ Environment: development
-✓ API Health: http://localhost:5000/api/health
-✓ Socket.IO: ws://localhost:5000
+MongoDB connected successfully
+Server running on port 5001
+API Health: http://localhost:5001/api/health
+Socket.IO: ws://localhost:5001
 ```
 
 **Health Check:**
@@ -175,31 +128,12 @@ server/
 {
   "success": true,
   "message": "Server is running",
-  "database": "MongoDB",
+  "database": "MongoDB Atlas",
   "sockets": "Socket.IO enabled",
-  "timestamp": "2026-05-20T11:13:08.656Z"
+  "timestamp": "..."
 }
 ```
 
 ---
 
-## 🚀 PRÓXIMOS PASOS
-
-1. Frontend con Socket.IO client
-2. UI para salas de votación
-3. Bracket visual interactivo
-4. Tests de endpoints
-5. Documentación OpenAPI/Swagger
-
----
-
-## 📝 NOTAS TÉCNICAS
-
-- Todos los endpoints usan **async/await** y **try/catch**
-- Comentarios en **español**
-- upsert en MongoDB para evitar duplicados
-- Socket.IO con CORS configurado para `http://localhost:5173` (Vite default)
-- node-fetch instalado para llamadas HTTP
-- Room.js con timestamps automáticos
-
-**Status:** ✅ 100% Listo para producción
+**Status:** 100% Funcional

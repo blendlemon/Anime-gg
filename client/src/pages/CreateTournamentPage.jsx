@@ -166,10 +166,10 @@ export const CreateTournamentPage = () => {
             {/* Tamaño */}
             <div>
               <label className="block text-sm font-medium text-zinc-300 mb-2">
-                Cantidad de Participantes
+                Cantidad de Vídeos
               </label>
-              <div className="grid grid-cols-2 gap-4">
-                {[16, 32].map((size) => (
+              <div className="grid grid-cols-3 gap-4">
+                {[8, 16, 32].map((size) => (
                   <button
                     key={size}
                     onClick={() => setForm({ ...form, size })}
@@ -179,7 +179,7 @@ export const CreateTournamentPage = () => {
                         : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
                     }`}
                   >
-                    {size} Openings
+                    {size} Vídeos
                   </button>
                 ))}
               </div>

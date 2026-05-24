@@ -1,249 +1,217 @@
-# API Documentation - Torneos
+# API Documentation - Anime Openings Tournament
 
-## Endpoints
+**Base URL:** `http://localhost:5001/api`
 
-### 1. GET /api/torneos
-**Descripción:** Lista todos los torneos disponibles
+---
 
-**Método:** `GET`
+## Auth Endpoints
 
-**URL:** `http://localhost:5000/api/torneos`
+### POST /api/auth/register
+Registrar nuevo usuario.
 
-**Respuesta exitosa (200):**
+**Request:**
+```json
+{ "username": "string", "email": "string", "password": "string" }
+```
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "data": { "token": "jwt...", "user": { "id": "...", "username": "...", "email": "..." } }
+}
+```
+
+**Errors:** 400 (validation), 409 (duplicate email/username)
+
+### POST /api/auth/login
+Iniciar sesión.
+
+**Request:**
+```json
+{ "email": "string", "password": "string" }
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": { "token": "jwt...", "user": { "id": "...", "username": "...", "email": "..." } }
+}
+```
+
+**Errors:** 400, 401 (invalid credentials)
+
+---
+
+## Anime Endpoints
+
+### GET /api/anime/search?q={query}
+Busca openings en AnimeThemes y los guarda en MongoDB.
+
+**Response (200):**
 ```json
 {
   "success": true,
   "data": [
     {
-      "id": 1,
-      "name": "Anime Openings 2024",
-      "description": "Torneo de apertura de anime más popular",
-      "status": "planning",
-      "created_by": 1,
-      "start_date": "2024-06-01T10:00:00Z",
-      "end_date": "2024-06-30T23:59:59Z",
-      "created_at": "2024-05-19T21:00:00.000Z"
+      "_id": "ObjectId",
+      "title": "Guren no Yumiya",
+      "anime_title": "Attack on Titan",
+      "anime_slug": "shingeki-no-kyojin",
+      "type": "OP",
+      "sequence": 1,
+      "artist": "Linked Horizon",
+      "year": 2013,
+      "season": "Spring",
+      "video_url": "https://v.animethemes.moe/...",
+      "thumbnail_url": "https://...",
+      "source": "animethemes"
     }
   ],
-  "count": 1,
-  "message": "Torneos obtenidos exitosamente"
+  "count": 55
 }
 ```
 
-**Errores:**
-- `500` - Error al obtener los torneos
+### GET /api/anime/anime?slug={slug}
+Obtiene openings de un anime específico por slug.
+
+### GET /api/anime?limit=50&skip=0&type=OP
+Lista todos los openings guardados con paginación opcional.
 
 ---
 
-### 2. GET /api/torneos/:id
-**Descripción:** Obtiene el detalle de un torneo específico incluyendo participantes y matches
+## Tournament Endpoints
 
-**Método:** `GET`
+### POST /api/tournaments
+Crea un nuevo torneo. **Requiere auth** (Bearer token). **Rate-limited: 10/min**.
 
-**URL:** `http://localhost:5000/api/torneos/1`
+**Headers:** `Authorization: Bearer <token>`
 
-**Parámetros:**
-- `id` (path) - ID del torneo (número entero)
+**Request:**
+```json
+{
+  "name": "Best Openings",
+  "size": 8,
+  "filterType": "OP"
+}
+```
 
-**Respuesta exitosa (200):**
+- `size`: 8, 16 o 32
+- `filterType`: "OP", "ED", o "both"
+
+**Response (201):**
 ```json
 {
   "success": true,
   "data": {
-    "id": 1,
-    "name": "Anime Openings 2024",
-    "description": "Torneo de apertura de anime más popular",
-    "status": "planning",
-    "created_by": 1,
-    "start_date": "2024-06-01T10:00:00Z",
-    "end_date": "2024-06-30T23:59:59Z",
-    "created_at": "2024-05-19T21:00:00.000Z",
-    "participants_count": 16,
-    "participants": [
-      {
-        "id": 1,
-        "opening_id": 10,
-        "seed": 1,
-        "title": "Cruel Angel Thesis",
-        "anime_title": "Neon Genesis Evangelion",
-        "artist": "Yoko Takahashi",
-        "thumbnail_url": "https://...",
-        "youtube_url": "https://..."
-      }
-    ],
-    "matches_count": 15,
-    "matches": [
-      {
-        "id": 1,
-        "round": 1,
-        "match_number": 1,
-        "participant1_id": 1,
-        "participant2_id": 2,
-        "winner_id": null,
-        "status": "pending",
-        "created_at": "2024-05-19T21:00:00.000Z",
-        "participant1_title": "Cruel Angel Thesis",
-        "participant1_anime": "Neon Genesis Evangelion",
-        "participant2_title": "Unravel",
-        "participant2_anime": "Tokyo Ghoul"
-      }
-    ]
-  },
-  "message": "Detalle del torneo obtenido exitosamente"
+    "_id": "ObjectId",
+    "name": "Best Openings",
+    "size": 8,
+    "status": "active",
+    "created_by": "ObjectId",
+    "participants": [...],
+    "matches": [...],
+    "invite_code": "ABC12345"
+  }
 }
 ```
 
-**Errores:**
-- `400` - ID inválido (no es un número)
-- `404` - Torneo no encontrado
-- `500` - Error al obtener el detalle del torneo
+### GET /api/tournaments/:id
+Obtiene detalle de torneo con participantes y matches.
+
+### GET /api/tournaments/:id/ranking
+Obtiene ranking de participantes por victorias.
 
 ---
 
-### 3. POST /api/torneos
-**Descripción:** Crea un nuevo torneo
+## Room Endpoints
 
-**Método:** `POST`
+### GET /api/rooms/open/list
+Lista todas las salas abiertas (status: waiting).
 
-**URL:** `http://localhost:5000/api/torneos`
+### GET /api/rooms/:inviteCode
+Obtiene datos de una sala por su invite code.
 
-**Content-Type:** `application/json`
+---
 
-**Body requerido:**
-```json
-{
-  "name": "Nombre del torneo",
-  "description": "Descripción del torneo (opcional)",
-  "created_by": 1,
-  "start_date": "2024-06-01T10:00:00Z",
-  "end_date": "2024-06-30T23:59:59Z"
-}
-```
+## Health Check
 
-**Parámetros:**
-| Campo | Tipo | Requerido | Descripción |
-|-------|------|-----------|-------------|
-| `name` | string | ✓ | Nombre del torneo (no vacío) |
-| `description` | string | ✗ | Descripción del torneo |
-| `created_by` | number | ✓ | ID del usuario creador (debe existir) |
-| `start_date` | string | ✗ | Fecha de inicio (ISO 8601) |
-| `end_date` | string | ✗ | Fecha de fin (ISO 8601) |
+### GET /api/health
 
-**Respuesta exitosa (201):**
+**Response:**
 ```json
 {
   "success": true,
-  "data": {
-    "id": 1,
-    "name": "Anime Openings 2024",
-    "description": "Torneo de apertura de anime más popular",
-    "created_by": 1,
-    "start_date": "2024-06-01T10:00:00Z",
-    "end_date": "2024-06-30T23:59:59Z",
-    "status": "planning",
-    "created_at": "2024-05-19T21:00:00.000Z"
-  },
-  "message": "Torneo creado exitosamente"
+  "message": "Server is running",
+  "database": "MongoDB Atlas",
+  "sockets": "Socket.IO enabled",
+  "timestamp": "ISO date"
 }
-```
-
-**Errores:**
-- `400` - Datos inválidos o requeridos faltantes
-- `404` - El usuario especificado no existe
-- `409` - Ya existe un torneo con ese nombre
-- `500` - Error al crear el torneo
-
----
-
-## Ejemplos de uso
-
-### Con cURL
-
-```bash
-# Listar torneos
-curl -X GET http://localhost:5000/api/torneos
-
-# Obtener detalle de un torneo
-curl -X GET http://localhost:5000/api/torneos/1
-
-# Crear un nuevo torneo
-curl -X POST http://localhost:5000/api/torneos \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Mi Torneo de Openings",
-    "description": "Un torneo increíble",
-    "created_by": 1,
-    "start_date": "2024-06-01T10:00:00Z",
-    "end_date": "2024-06-30T23:59:59Z"
-  }'
-```
-
-### Con JavaScript/Fetch
-
-```javascript
-// Listar torneos
-const getTournaments = async () => {
-  const response = await fetch('http://localhost:5000/api/torneos')
-  const data = await response.json()
-  return data
-}
-
-// Obtener detalle
-const getTournamentById = async (id) => {
-  const response = await fetch(`http://localhost:5000/api/torneos/${id}`)
-  const data = await response.json()
-  return data
-}
-
-// Crear torneo
-const createTournament = async (tournament) => {
-  const response = await fetch('http://localhost:5000/api/torneos', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(tournament)
-  })
-  const data = await response.json()
-  return data
-}
-```
-
-### Con Axios
-
-```javascript
-import axios from 'axios'
-
-const API_URL = 'http://localhost:5000/api'
-
-// Listar torneos
-const getTournaments = () => axios.get(`${API_URL}/torneos`)
-
-// Obtener detalle
-const getTournamentById = (id) => axios.get(`${API_URL}/torneos/${id}`)
-
-// Crear torneo
-const createTournament = (tournament) => 
-  axios.post(`${API_URL}/torneos`, tournament)
 ```
 
 ---
 
-## Códigos de estado HTTP
+## Códigos de Estado HTTP
 
-| Código | Significado | Descripción |
-|--------|-------------|-------------|
-| `200` | OK | Solicitud exitosa |
-| `201` | Created | Recurso creado exitosamente |
-| `400` | Bad Request | Datos inválidos o incompletos |
-| `404` | Not Found | Recurso no encontrado |
-| `409` | Conflict | El recurso ya existe |
-| `500` | Server Error | Error del servidor |
+| Código | Significado |
+|--------|-------------|
+| 200 | OK |
+| 201 | Created |
+| 400 | Bad Request |
+| 401 | Unauthorized |
+| 404 | Not Found |
+| 409 | Conflict |
+| 429 | Rate Limited |
+| 500 | Server Error |
 
 ---
 
-## Consideraciones
+## Socket.IO Events
 
-- **Validación:** Se valida que los campos requeridos estén presentes y sean válidos
-- **Seguridad:** Se valida que el usuario especificado existe antes de crear el torneo
-- **Timestamps:** Las fechas se manejan en formato ISO 8601
-- **Conexiones:** Se usan promesas con try/catch para manejo robusto de errores
-- **Pool de conexiones:** MySQL2 usa un pool de conexiones para mejor rendimiento
+### Client → Server
+| Evento | Payload | Descripción |
+|--------|---------|-------------|
+| `join_room` | `{ inviteCode, userId, username }` | Unirse a sala |
+| `start_tournament` | `{ inviteCode, userId }` | Host inicia torneo |
+| `skip_p1` | `{ inviteCode, matchId, userId }` | Saltar primer opening |
+| `video_ended` | `{ inviteCode, matchId, participant }` | Vídeo terminó (1=P1, 2=P2) |
+| `p2_ready` | `{ inviteCode, matchId }` | P2 empezó a reproducirse |
+| `submit_vote` | `{ inviteCode, matchId, participantId, userId }` | Votar |
+| `leave_room` | `{ inviteCode, userId }` | Salir de sala |
+
+### Server → Client
+| Evento | Payload | Descripción |
+|--------|---------|-------------|
+| `room_updated` | `{ connected_users, status, host_user_id, videos_ready }` | Estado de sala |
+| `tournament_started` | `{ tournament, currentMatch, phase, totalUsers }` | Primer match |
+| `p1_skip_update` | `{ matchId, skippedCount, totalUsers }` | Progreso de skip |
+| `p1_skipped` | `{ matchId }` | P1 saltado por todos |
+| `p2_ended` | `{ matchId }` | P2 terminó (inicia votación 10s) |
+| `vote_update` | `{ matchId, votes, totalVotes }` | Conteo en vivo |
+| `match_changed` | `{ currentMatch, phase, totalUsers }` | Siguiente match |
+| `tournament_ended` | `{ message, tournament, status }` | Resultados |
+| `room_closed` | `{ message, reason }` | Sala cerrada |
+| `error` | `{ message }` | Error |
+
+---
+
+## Flujo de Votación
+
+1. **P1**: Se reproduce el primer opening. Usuarios pueden saltar (`skip_p1`). Skip unánime o fin del vídeo → avanza a P2.
+2. **P2**: Se reproduce el segundo opening. Usuarios pueden votar por P1 o P2 en cualquier momento.
+3. **Auto-avance**: Si todos los usuarios votan antes de que termine P2 → avance inmediato.
+4. **Timeout**: Si P2 termina y no todos votaron → 10s de votación, luego `finalizeMatch`.
+5. **Empate/Sin votos**: Ganador elegido aleatoriamente.
+
+---
+
+## Notas
+
+- Puerto: **5001**
+- Package manager: **pnpm** (no npm)
+- Auth: JWT tokens via Bearer header
+- DB: MongoDB Atlas (cloud)
+- Sin proxy de vídeo — reproducción directa desde CDN de AnimeThemes
+- Los vídeos son .webm servidos desde `v.animethemes.moe`
+- El bracket completo se genera al crear el torneo (no on-the-fly)

@@ -1,7 +1,10 @@
 import mongoose from 'mongoose'
 import dotenv from 'dotenv'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
-dotenv.config()
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://root:rootpassword@localhost:27017/anime_tournament?authSource=admin'
 

@@ -13,7 +13,7 @@ const tournamentSchema = new mongoose.Schema({
   size: {
     type: Number,
     required: true,
-    enum: [16, 32]
+    enum: [8, 16, 32]
   },
   filterType: {
     type: String,

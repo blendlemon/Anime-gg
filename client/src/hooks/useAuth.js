@@ -85,6 +85,35 @@ export const useSocket = () => {
     }
   }
 
+  const skipP1 = (inviteCode, matchId, userId) => {
+    if (socket) {
+      socket.emit('skip_p1', {
+        inviteCode: inviteCode,
+        matchId: matchId,
+        userId: userId
+      })
+    }
+  }
+
+  const videoEnded = (inviteCode, matchId, participant) => {
+    if (socket) {
+      socket.emit('video_ended', {
+        inviteCode: inviteCode,
+        matchId: matchId,
+        participant: participant
+      })
+    }
+  }
+
+  const p2Ready = (inviteCode, matchId) => {
+    if (socket) {
+      socket.emit('p2_ready', {
+        inviteCode: inviteCode,
+        matchId: matchId
+      })
+    }
+  }
+
   const leaveRoom = (inviteCode, userId) => {
     if (socket) {
       socket.emit('leave_room', {
@@ -131,6 +160,18 @@ export const useSocket = () => {
     }
   }
 
+  const onP1Skipped = (callback) => {
+    if (socket) {
+      socket.on('p1_skipped', callback)
+    }
+  }
+
+  const onP1SkipUpdate = (callback) => {
+    if (socket) {
+      socket.on('p1_skip_update', callback)
+    }
+  }
+
   const onError = (callback) => {
     if (socket) {
       socket.on('error', callback)
@@ -143,6 +184,9 @@ export const useSocket = () => {
     startTournament,
     submitVote,
     nextMatch,
+    skipP1,
+    videoEnded,
+    p2Ready,
     leaveRoom,
     onRoomUpdated,
     onTournamentStarted,
@@ -150,6 +194,8 @@ export const useSocket = () => {
     onMatchChanged,
     onTournamentEnded,
     onRoomClosed,
+    onP1Skipped,
+    onP1SkipUpdate,
     onError
   }
 }

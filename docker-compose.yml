@@ -17,7 +17,7 @@ services:
     networks:
       - anime-network
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/anime_tournament -u root -p rootpassword
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/admin -u root -p rootpassword
       interval: 5s
       timeout: 5s
       retries: 5

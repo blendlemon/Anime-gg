@@ -1,421 +1,205 @@
-# 📋 PROJECT CONTEXT & KNOWLEDGE BASE
+# PROJECT CONTEXT & KNOWLEDGE BASE
 **Anime Openings Tournament - Bracket Eliminatorio**
 
 ---
 
-## 🎯 PROJECT OVERVIEW
+## PROJECT OVERVIEW
 
-**Description:** Torneo eliminatorio de 16 openings de anime con bracket interactivo. Frontend en React + Vite + Tailwind, Backend en Express + MongoDB (Docker).
+**Description:** Torneo eliminatorio de openings de anime con bracket interactivo y votación en tiempo real. Frontend en React + Vite + Tailwind, Backend en Express + MongoDB Atlas, WebSockets con Socket.IO.
 
 **Tech Stack:**
-- Frontend: React 18, Vite, Tailwind CSS, Axios
-- Backend: Express.js, MongoDB (Docker), Mongoose, Node.js
-- Database: MongoDB 7.0 (Docker + Docker Compose)
+- Frontend: React 18, Vite 5, Tailwind CSS 3, Socket.IO Client, React Router 6
+- Backend: Express 4, MongoDB Atlas (Mongoose 8), Socket.IO 4
+- Auth: JWT (jsonwebtoken + bcryptjs)
+- External API: AnimeThemes (api.animethemes.moe) - Pública, sin API key
 - Package Manager: pnpm (NOT npm)
-- API Externa: AnimeThemes (api.animethemes.moe) - Pública, sin API key
 
 **Key URLs:**
 - Frontend Dev: `http://localhost:5173`
-- Backend: `http://localhost:5000`
-- Backend API: `http://localhost:5000/api`
-- MongoDB: `mongodb://root:rootpassword@localhost:27017/anime_tournament?authSource=admin`
-- Mongo Express (Admin): `http://localhost:8081` (admin/admin123)
+- Backend API: `http://localhost:5001/api`
+- MongoDB: Atlas (cloud)
 - AnimeThemes API: `https://api.animethemes.moe`
 - AnimeThemes Docs: `https://api-docs.animethemes.moe/`
 
 ---
 
-## 🔧 CRITICAL CONFIGURATION
+## CRITICAL CONFIGURATION
 
 ### Package Manager
-**⚠️ USE PNPM - NOT NPM**
+**USE PNPM - NOT NPM**
 ```bash
 pnpm install   # Install dependencies
 pnpm run dev   # Run dev server
 pnpm add pkg   # Add package
 ```
 
-### Backend Server Details
-- **Port:** 5000
+### Backend Server
+- **Port:** 5001
 - **Entry:** `server/src/index.js`
-- **Dev Command:** `pnpm run dev` (uses nodemon)
-- **Environment:** `.env` file (see `.env.example`)
+- **Dev Command:** `pnpm run dev` (nodemon)
+- **Environment:** `server/.env`
 
-### Frontend Dev Server Details
+### Frontend Dev Server
 - **Port:** 5173 (Vite default)
 - **Entry:** `client/src/main.jsx`
-- **Proxy:** `/api` routes to `http://localhost:5000`
 - **Config:** `client/vite.config.js`
 
-### Database (MongoDB)
-- **Type:** MongoDB 7.0 (Docker)
-- **Connection:** Docker Compose (`docker-compose.yml`)
-- **URI:** `mongodb://root:rootpassword@localhost:27017/anime_tournament?authSource=admin`
+### Database (MongoDB Atlas)
+- **Type:** MongoDB Atlas (cloud, free tier M0)
+- **URI:** Configurable via `MONGODB_URI` en `.env`
 - **ORM:** Mongoose 8.x
-- **Models:** `server/src/models/*.js`
-- **Admin UI:** Mongo Express (`http://localhost:8081`)
-- **Tables:** users, anime_openings, tournaments, tournament_participants, matches, votes
+- **Models:** `server/src/models/` (7 modelos: User, AnimeOpening, Tournament, TournamentParticipant, Match, Vote, Room)
+- **Sincronización:** AnimeThemes sync automático cada 6h vía `animeThemesService.js`
 
 ---
 
-## 🔴 CRITICAL ISSUES SOLVED
+## API ENDPOINTS (Actuales)
 
-### Issue 1: AnimeThemes API Format
-**Problem:** API returns JSON:API format, not simple JSON
-**Solution:** 
-- Added headers: `Accept: application/vnd.api+json`, `User-Agent: ...`
-- Use `filter[slug][]` not `filter[slug]`
-- Response structure: `{ anime: [...], links: {...}, meta: {...} }`
-- Implemented in-memory search (paginate and filter locally)
-
-**Fixed in:** `server/src/utils/animeThemesService.js`
-
-### Issue 2: Error 403 from AnimeThemes
-**Problem:** API blocking requests without User-Agent header
-**Solution:** Added `User-Agent: AnimeOpeningsTournamentApp/1.0` to all requests
-
-### Issue 3: Error 422 from AnimeThemes
-**Problem:** Filter format was wrong (not array)
-**Solution:** Changed to `filter[slug][]` format and implemented in-memory search
-
-### Issue 4: jsonwebtoken Version
-**Problem:** pnpm couldn't find `jsonwebtoken@^9.1.0`
-**Solution:** Downgraded to `^9.0.0` in `package.json`
-
----
-
-## 📦 CREATED FILES STRUCTURE
-
-### Backend
+### Auth
 ```
-server/
-├── src/
-│   ├── utils/animeThemesService.js      ✅ AnimeThemes API service (CORRECTED)
-│   ├── controllers/animeController.js   ✅ Route handlers
-│   ├── routes/animeRoutes.js           ✅ Anime endpoints
-│   ├── routes/tournaments.js           ✅ Tournament endpoints
-│   ├── config/database.js              ✅ MySQL pool config
-│   ├── database/schema.sql             ✅ DB schema (6 tables)
-│   └── index.js                        ✅ Main server (MODIFIED)
-├── package.json                        ✅ (CORRECTED: jsonwebtoken version)
-├── API_DOCUMENTATION.md                ✅ Endpoint docs
-├── ANIMETHEMES_INTEGRATION.md         ✅ Integration guide
-└── .env.example                        ✅ Environment template
+POST /api/auth/register    → { username, email, password }
+POST /api/auth/login       → { email, password } → JWT token
 ```
 
-### Frontend
+### Anime (AnimeThemes)
 ```
-client/
-├── src/
-│   ├── utils/animeApi.js               ✅ HTTP client for backend
-│   ├── hooks/useAnimeSearch.js         ✅ 3 custom hooks (search, detail, popular)
-│   ├── components/
-│   │   ├── BracketView.jsx             ✅ 4-round bracket component
-│   │   ├── BracketDemo.jsx             ✅ Example with 16 openings
-│   │   ├── TestComponent.jsx           ✅ Testing UI
-│   │   ├── AnimeSearchExamples.jsx     ✅ 5 usage examples
-│   │   ├── BracketView.css             ✅ Bracket styles
-│   ├── App.jsx                         ✅ Main component
-│   ├── main.jsx                        ✅ Entry point
-│   └── styles/index.css                ✅ Global styles
-├── vite.config.js                      ✅ Vite + proxy config
-├── tailwind.config.js                  ✅ Tailwind config
-├── postcss.config.js                   ✅ PostCSS config
-├── index.html                          ✅ HTML entry
-└── .env.example                        ✅ Environment template
+GET  /api/anime/search?q=        → Buscar openings, guarda en MongoDB
+GET  /api/anime/anime?slug=      → Openings por slug de anime
+GET  /api/anime                  → Listar todos (paginado: ?limit=&skip=&type=)
 ```
 
-### Documentation & Testing
+### Tournaments
 ```
-project/
-├── TESTING_START.md                    ✅ Quick start testing guide
-├── TESTING_GUIDE.md                    ✅ Detailed testing (9900+ words)
-├── QUICK_START_TESTING.md             ✅ Visual testing quick start
-├── ANIMETHEMES_SETUP.md               ✅ Setup summary
-├── README.md                           ✅ Project overview
-├── quick-test.sh                       ✅ Bash testing script
-└── quick-test.ps1                      ✅ PowerShell testing script
+POST /api/tournaments            → Crear torneo (auth required, sizes: 8/16/32)
+GET  /api/tournaments/:id        → Detalle con participantes y matches
+GET  /api/tournaments/:id/ranking → Ranking por victorias
+```
+
+### Rooms (Salas de votación)
+```
+GET  /api/rooms/open/list        → Listar salas abiertas
+GET  /api/rooms/:inviteCode      → Obtener sala
 ```
 
 ---
 
-## 🎣 BACKEND ENDPOINTS
+## SOCKET.IO EVENTS
 
-### Anime Endpoints
-```
-GET  /api/anime/search?q=naruto        → Search anime by name (in-memory)
-GET  /api/anime/naruto                 → Get anime detail by slug
-GET  /api/anime/popular                → Get top 20 anime with openings
-```
+### Client → Server
+| Evento | Datos | Descripción |
+|--------|-------|-------------|
+| `join_room` | `{ inviteCode, userId, username }` | Unirse a sala |
+| `start_tournament` | `{ inviteCode, userId }` | Host inicia torneo |
+| `skip_p1` | `{ inviteCode, matchId, userId }` | Saltar P1 |
+| `video_ended` | `{ inviteCode, matchId, participant }` | Vídeo terminó (1=P1, 2=P2) |
+| `p2_ready` | `{ inviteCode, matchId }` | P2 empezó a reproducirse |
+| `submit_vote` | `{ inviteCode, matchId, participantId, userId }` | Votar |
+| `leave_room` | `{ inviteCode, userId }` | Salir de sala |
 
-### Tournament Endpoints
-```
-GET  /api/torneos                      → List all tournaments
-GET  /api/torneos/:id                  → Get tournament detail with matches
-POST /api/torneos                      → Create new tournament
-```
+### Server → Client
+| Evento | Datos | Descripción |
+|--------|-------|-------------|
+| `room_updated` | `{ room, connected_users }` | Estado de sala |
+| `tournament_started` | `{ tournament, currentMatch, phase, totalUsers }` | Primer match |
+| `p1_skip_update` | `{ matchId, skippedCount, totalUsers }` | Progreso de skip |
+| `p1_skipped` | `{ matchId }` | P1 saltado/terminado |
+| `p2_ended` | `{ matchId }` | P2 terminó (inicia votación 10s) |
+| `vote_update` | `{ matchId, votes, totalVotes }` | Conteo en vivo |
+| `match_changed` | `{ currentMatch, phase, totalUsers }` | Siguiente enfrentamiento |
+| `tournament_ended` | `{ message, tournament, status }` | Resultados finales |
+| `room_closed` | `{ message, reason }` | Sala cerrada |
+| `error` | `{ message }` | Error |
 
 ---
 
-## ⚙️ CUSTOM HOOKS (Frontend)
+## FLUJO DE VOTACIÓN
+
+1. **Playing P1**: Se reproduce el primer opening. Cualquier usuario puede saltar (`skip_p1`). Si todos saltan → P2.
+2. **Playing P2**: Se reproduce el segundo opening. Cuando termina → 10s de votación.
+3. **Votación**: Usuarios votan por P1 o P2. Si todos votan antes de que termine P2 → avance inmediato.
+4. **Finalize**: Se determina el ganador (o random en caso de empate/sin votos). Se coloca en el bracket.
+5. **Siguiente match**: Se repite el ciclo hasta que no hay más matches → torneo termina.
+
+---
+
+## CUSTOM HOOKS (Frontend)
+
+### useAuth()
+```javascript
+const { user, token, loading, login, register, logout } = useAuth()
+```
+
+### useSocket()
+```javascript
+const { socket, joinRoom, startTournament, submitVote, skipP1, videoEnded, p2Ready, leaveRoom } = useSocket()
+```
 
 ### useAnimeSearch()
 ```javascript
 const { results, loading, error, query, handleSearchChange, executeSearch, clearResults } = useAnimeSearch()
-// results: Array of anime
-// loading: boolean
-// error: error message or null
 ```
 
 ### useAnimeDetail()
 ```javascript
 const { anime, loading, error, loadAnime, clear } = useAnimeDetail()
-// anime: single anime object with all openings
 ```
 
 ### usePopularOpenings()
 ```javascript
 const { openings, loading, error, loadPopularOpenings, refetch } = usePopularOpenings()
-// openings: array of opening objects with animeName, animeSlug
 ```
 
 ---
 
-## 🔑 ENVIRONMENT VARIABLES
+## ENVIRONMENT VARIABLES
 
-### Backend (.env)
+### Backend (`server/.env`)
 ```env
-PORT=5000
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=
-DB_NAME=anime_tournament
+PORT=5001
+MONGODB_URI=mongodb+srv://usuario:password@cluster.mongodb.net/anime_tournament?retryWrites=true&w=majority
 NODE_ENV=development
-JWT_SECRET=your_secret_key
+JWT_SECRET=tu_secreto
+CLIENT_URL=http://localhost:5173
 ```
 
-### Frontend (.env.local)
+### Frontend (`client/.env.local`)
 ```env
-VITE_API_URL=http://localhost:5000/api
+VITE_API_URL=http://localhost:5001/api
 ```
 
 ---
 
-## 📊 IMPORTANT DATA STRUCTURES
+## KNOWN LIMITATIONS
 
-### Anime Object (from AnimeThemes)
-```javascript
-{
-  id: number,
-  slug: string,                    // unique identifier (e.g., "naruto")
-  name: string,
-  year: number,
-  season: string,                  // "Fall", "Winter", etc.
-  mediaFormat: string,             // "TV", "Movie", etc.
-  synopsis: string,
-  openings: [                       // Array of OP themes
-    {
-      id: number,
-      title: string,               // Song title
-      type: "OP",
-      sequence: number,            // OP 1, OP 2, etc.
-      artist: string,
-      videoUrl: string | null,     // WebM format
-      videoResolution: number,     // 1080, 720, etc.
-      source: "animethemes"
-    }
-  ],
-  endings: [...]                    // Similar structure for endings
-}
-```
-
-### Tournament Object
-```javascript
-{
-  id: number,
-  name: string,
-  description: string,
-  status: "planning" | "active" | "completed",
-  created_by: number,
-  start_date: string | null,
-  end_date: string | null,
-  created_at: string,
-  participants: [],
-  matches: []
-}
-```
+1. **WebM Videos:** Not supported in IE / older Safari
+2. **Auth:** Basic JWT, no role-based access or email verification
+3. **Tournament Size:** 8, 16, or 32 participants supported
+4. **Video playback:** Solo control de volumen (sin pausa/buscar/retroceder)
 
 ---
 
-## 🧪 TESTING QUICK REFERENCE
+## HOW TO START AFTER CLONING
 
-### Option 1: Browser (Recommended)
-1. Terminal 1: `cd server && pnpm run dev`
-2. Terminal 2: `cd client && pnpm run dev`
-3. Open `http://localhost:5173`
-4. Type "naruto" and search
-
-### Option 2: PowerShell
-```powershell
-.\quick-test.ps1 test
-```
-
-### Option 3: cURL
 ```bash
-curl "http://localhost:5000/api/anime/search?q=naruto"
-curl "http://localhost:5000/api/anime/naruto"
-curl "http://localhost:5000/api/anime/popular"
+# 1. Install pnpm if needed
+npm install -g pnpm
+
+# 2. Install dependencies
+cd server && pnpm install
+cd ../client && pnpm install
+
+# 3. Setup environment files
+cp server/.env.example server/.env   # Configurar MONGODB_URI con Atlas
+cp client/.env.example client/.env.local
+
+# 4. Run (two terminals)
+cd server && pnpm run dev   # Terminal 1
+cd client && pnpm run dev   # Terminal 2
+
+# 5. Open http://localhost:5173
 ```
 
 ---
 
-## 🚀 HOW TO START AFTER CHANGING COMPUTER
-
-1. **Install pnpm** (if not installed)
-   ```bash
-   npm install -g pnpm
-   ```
-
-2. **Install dependencies**
-   ```bash
-   pnpm install  # from server/
-   pnpm install  # from client/
-   ```
-
-3. **Setup environment files**
-   ```bash
-   cp server/.env.example server/.env
-   cp client/.env.example client/.env.local
-   ```
-
-4. **Create MySQL database** (if needed)
-   ```bash
-   mysql -u root < server/src/database/schema.sql
-   ```
-
-5. **Run servers** (in separate terminals)
-   ```bash
-   # Terminal 1
-   cd server && pnpm run dev
-   
-   # Terminal 2
-   cd client && pnpm run dev
-   ```
-
-6. **Test**
-   - Open `http://localhost:5173`
-   - Or run `.\quick-test.ps1 test`
-
----
-
-## 🔄 DEVELOPMENT WORKFLOW
-
-### Adding a Feature
-1. Create React component in `client/src/components/`
-2. Use hooks from `client/src/hooks/`
-3. Call backend API via `client/src/utils/animeApi.js`
-4. Backend handles in `server/src/controllers/`
-5. Test with `pnpm run dev` in both terminals
-
-### Debugging
-- Frontend: `F12` → Console tab
-- Backend: Check terminal output + `console.error()` calls
-- API: Test directly with cURL or PowerShell before integration
-
-### Database Changes
-1. Update schema in `server/src/database/schema.sql`
-2. Update models as needed
-3. Recreate database: `mysql -u root < schema.sql`
-
----
-
-## ⚠️ KNOWN LIMITATIONS
-
-1. **AnimeThemes Search:** Uses in-memory filtering (slower on 1000+ items)
-   - Mitigation: Limit to first 5 pages maximum
-
-2. **WebM Videos:** Not supported in all browsers (IE, older Safari)
-   - Solution: Transcoding or fallback to MP4
-
-3. **Database:** Currently no authentication/authorization
-   - Future: Implement JWT middleware
-
-4. **Bracket:** Max 16 participants (hardcoded)
-   - Future: Make dynamic
-
----
-
-## 📝 COMPONENTS READY TO USE
-
-### BracketView
-```javascript
-<BracketView openings={arrayOf16} />
-```
-- Shows 4-round bracket
-- Click to select winners
-- Auto-advances winners
-- Fully styled with Tailwind
-
-### TestComponent
-- Ready-to-use testing UI
-- Shows search + populars
-- Dark theme
-- No setup needed
-
-### AnimeSearchExamples
-- 5 complete usage examples
-- Copy-paste ready
-- Shows different patterns
-
----
-
-## 🔗 NEXT STEPS
-
-1. **Add Bracket to Search Results**
-   - Create component that lets user select 16 openings from search
-   - Pass to BracketView
-
-2. **Save Tournament to Database**
-   - Connect BracketView wins to tournament_participants/matches tables
-   - Persist results
-
-3. **User Authentication**
-   - Add login/signup
-   - JWT middleware
-   - User-specific tournaments
-
-4. **Video Player**
-   - Custom player component
-   - Pause during voting
-   - Full-screen support
-
-5. **Mobile Responsive**
-   - Currently desktop-focused
-   - Add mobile layout
-
----
-
-## 📚 USEFUL REFERENCES
-
-- AnimeThemes API: https://api-docs.animethemes.moe/
-- React Hooks: https://react.dev/reference/react/hooks
-- Express.js: https://expressjs.com/
-- Tailwind: https://tailwindcss.com/docs
-- Vite: https://vitejs.dev/guide/
-
----
-
-## 💡 TIPS FOR FUTURE WORK
-
-1. **pnpm is 3x faster than npm** - Always use it
-2. **Test API directly first** before integrating to frontend
-3. **Check browser console (F12)** for CORS/error details
-4. **AnimeThemes responses are always `{ anime: [...], links: {...}, meta: {...} }` - Don't forget this structure**
-5. **Use `filter[slug][]` format for filters** - Array notation required
-6. **Add User-Agent header** to all AnimeThemes requests - Otherwise 403 error
-
----
-
-**Last Updated:** 2026-05-19 21:50 UTC  
-**Status:** ✅ All core systems working  
-**Ready for:** Integration of components + Database persistence
+**Last Updated:** 2026-05-24
+**Status:** All core systems working (Auth, AnimeThemes API, Tournament CRUD, Rooms, Socket.IO voting with skip/vote/timeout flow)

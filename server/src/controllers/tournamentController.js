@@ -2,7 +2,9 @@ import Tournament from '../models/Tournament.js'
 import Match from '../models/Match.js'
 import AnimeOpening from '../models/AnimeOpening.js'
 import Room from '../models/Room.js'
-import { ensureTournamentVideoCache, clearTournamentVideoCache } from '../utils/videoCache.js'
+
+// Ya no se cachean videos, se reproducen directo desde la CDN
+const cacheTournamentVideos = async () => {}
 
 // Función auxiliar para generar invite code aleatorio
 const generateInviteCode = () => {
@@ -44,31 +46,43 @@ const getRandomOpenings = async (size, filterType) => {
   }
 }
 
-// Función auxiliar para crear matches de la ronda 1
-const createRound1Matches = async (tournamentId, participants) => {
-  try {
-    const matches = []
-    const numMatches = participants.length / 2
+// Función auxiliar para crear el bracket completo del torneo
+const createAllBracketMatches = async (tournamentId, participants) => {
+  const totalParticipants = participants.length
+  const totalRounds = Math.log2(totalParticipants)
+  const allMatches = []
 
-    // Emparejar: seed 1 vs seed N, seed 2 vs seed N-1, etc.
-    for (let i = 0; i < numMatches; i++) {
+  // Ronda 1: participantes reales, emparejamiento seed 1 vs último, etc.
+  const numMatchesR1 = totalParticipants / 2
+  for (let i = 0; i < numMatchesR1; i++) {
+    const match = new Match({
+      tournament_id: tournamentId,
+      round: 1,
+      match_number: i + 1,
+      participant1_id: participants[i]._id,
+      participant2_id: participants[totalParticipants - 1 - i]._id,
+      status: 'pending'
+    })
+    await match.save()
+    allMatches.push(match)
+  }
+
+  // Rondas siguientes: sin participantes todavía (se rellenan al avanzar)
+  for (let round = 2; round <= totalRounds; round++) {
+    const numMatches = totalParticipants / Math.pow(2, round)
+    for (let m = 1; m <= numMatches; m++) {
       const match = new Match({
         tournament_id: tournamentId,
-        round: 1,
-        match_number: i + 1,
-        participant1_id: participants[i]._id,
-        participant2_id: participants[participants.length - 1 - i]._id,
+        round: round,
+        match_number: m,
         status: 'pending'
       })
-
       await match.save()
-      matches.push(match)
+      allMatches.push(match)
     }
-
-    return matches
-  } catch (error) {
-    throw error
   }
+
+  return allMatches
 }
 
 // Crear nuevo torneo
@@ -92,8 +106,8 @@ export const createTournament = async (req, res) => {
       })
     }
 
-    // Validar que size sea 16 o 32
-    const validSizes = [16, 32]
+    // Validar que size sea 8, 16 o 32
+    const validSizes = [8, 16, 32]
     if (!validSizes.includes(size)) {
       return res.status(400).json({
         success: false,
@@ -137,22 +151,11 @@ export const createTournament = async (req, res) => {
 
     await newTournament.save()
 
-    try {
-      await ensureTournamentVideoCache(newTournament._id, newTournament.participants)
-      await newTournament.save()
-    } catch (cacheError) {
-      console.warn('No se pudieron cachear todos los vídeos del torneo:', cacheError.message)
-      await clearTournamentVideoCache(newTournament._id)
-      newTournament.participants.forEach((participant) => {
-        participant.cached_video_url = undefined
-      })
-    }
-
     // Obtener los participantes guardados (ahora tienen _id)
     const savedParticipants = newTournament.participants
 
-    // Crear matches de la primera ronda
-    const matches = await createRound1Matches(newTournament._id, savedParticipants)
+    // Crear matches de todo el bracket
+    const matches = await createAllBracketMatches(newTournament._id, savedParticipants)
 
     // Agregar IDs de matches al torneo
     newTournament.matches = matches.map((m) => m._id)
@@ -173,12 +176,14 @@ export const createTournament = async (req, res) => {
       tournament_id: newTournament._id,
       invite_code: inviteCode,
       current_match_id: matches[0]._id,
-      status: 'waiting'
+      status: 'waiting',
+      videos_ready: true
     })
 
     await room.save()
 
-    return res.status(201).json({
+    // Responder inmediatamente antes de cachear videos
+    res.status(201).json({
       success: true,
       message: 'Torneo creado exitosamente',
       tournament: {
@@ -196,6 +201,9 @@ export const createTournament = async (req, res) => {
         status: m.status
       }))
     })
+
+    // Cachear videos en segundo plano (no bloquea la respuesta)
+    cacheTournamentVideos(newTournament._id, savedParticipants)
   } catch (error) {
     console.error('Error en createTournament:', error)
     return res.status(400).json({
@@ -310,11 +318,7 @@ export const advanceWinner = async (req, res) => {
       })
     }
 
-    const match = await Match.findByIdAndUpdate(
-      id,
-      { winner: winnerId, status: 'completed' },
-      { new: true }
-    )
+    const match = await Match.findById(id)
 
     if (!match) {
       return res.status(404).json({
@@ -322,6 +326,18 @@ export const advanceWinner = async (req, res) => {
         error: 'Match no encontrado'
       })
     }
+
+    match.winner_id = winnerId
+    match.status = 'completed'
+    await match.save()
+
+    await Tournament.findOneAndUpdate(
+      {
+        _id: match.tournament_id,
+        'participants._id': winnerId
+      },
+      { $inc: { 'participants.$.wins': 1 } }
+    )
 
     return res.status(200).json({
       success: true,

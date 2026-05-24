@@ -1,22 +1,6 @@
-# 🚀 QUICK START - MongoDB Edition
+# QUICK START
 
-## 1️⃣ Inicia MongoDB con Docker
-
-```bash
-cd "d:\proyecto con ai"
-docker-compose up -d
-```
-
-Verifica que estén corriendo:
-```bash
-docker ps
-```
-
-Deberías ver dos contenedores:
-- `anime-tournament-mongo` ✅
-- `anime-tournament-mongo-express` ✅
-
-## 2️⃣ Instala Dependencias
+## 1. Instala Dependencias
 
 ### Backend
 ```bash
@@ -24,42 +8,29 @@ cd server
 pnpm install
 ```
 
-### Frontend (opcional por ahora)
+### Frontend
 ```bash
 cd client
 pnpm install
 ```
 
-## 3️⃣ Configura Variables de Entorno
+## 2. Configura Variables de Entorno
 
-### Backend (.env)
-Copia o verifica `server/.env`:
+### Backend (`server/.env`)
 ```env
-PORT=5000
-MONGODB_URI=mongodb://root:rootpassword@localhost:27017/anime_tournament?authSource=admin
+PORT=5001
+MONGODB_URI=mongodb+srv://usuario:password@cluster.mongodb.net/anime_tournament?retryWrites=true&w=majority
 NODE_ENV=development
-JWT_SECRET=tu_super_secreto_aqui_cambiar_en_produccion
+JWT_SECRET=tu_secreto
+CLIENT_URL=http://localhost:5173
 ```
 
-### Frontend (.env)
-Copia `client/.env.example` → `client/.env`:
+### Frontend (`client/.env.local`)
 ```env
-VITE_API_URL=http://localhost:5000/api
+VITE_API_URL=http://localhost:5001/api
 ```
 
-## 4️⃣ Puebla la Base de Datos (Opcional)
-
-```bash
-cd server
-node seed.js
-```
-
-Esto crea:
-- 1 usuario de prueba
-- 4 openings de anime
-- 1 torneo con esos openings
-
-## 5️⃣ Inicia el Servidor
+## 3. Inicia el Servidor Backend
 
 ```bash
 cd server
@@ -68,13 +39,12 @@ pnpm run dev
 
 Deberías ver:
 ```
-✓ MongoDB connected successfully
-✓ Server running on port 5000
-✓ Environment: development
-✓ API Health: http://localhost:5000/api/health
+MongoDB connected successfully
+Server running on port 5001
+Socket.IO: ws://localhost:5001
 ```
 
-## 6️⃣ Inicia el Cliente (en otra terminal)
+## 4. Inicia el Cliente (otra terminal)
 
 ```bash
 cd client
@@ -83,115 +53,49 @@ pnpm run dev
 
 Accede a: `http://localhost:5173`
 
-## 🧪 Prueba Rápida
-
-### Health Check
-```bash
-curl http://localhost:5000/api/health
-```
-
-### Listar Torneos
-```bash
-curl http://localhost:5000/api/torneos
-```
-
-### Mongo Express (Admin)
-Abre: `http://localhost:8081`
-- Usuario: `admin`
-- Contraseña: `admin123`
-
-## 📦 Estructura de Carpetas
-
-```
-proyecto con ai/
-├── docker-compose.yml      ← Configuración MongoDB
-├── init-mongo.js           ← Script de inicialización
-├── MONGODB_MIGRATION.md    ← Documentación de migración
-├── MONGODB_SETUP.md        ← Guía detallada
-│
-├── client/                 ← Frontend React
-│   ├── src/
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   ├── utils/
-│   │   └── App.jsx
-│   └── package.json
-│
-└── server/                 ← Backend Express
-    ├── src/
-    │   ├── config/
-    │   │   └── mongodb.js  ← Conexión MongoDB
-    │   ├── models/         ← Esquemas Mongoose
-    │   ├── routes/
-    │   ├── controllers/
-    │   ├── utils/
-    │   └── index.js
-    ├── seed.js             ← Datos de prueba
-    └── package.json
-```
-
-## 🛑 Detener Todo
-
-### Detener Servidor
-En la terminal del servidor: `Ctrl+C`
-
-### Detener MongoDB
-```bash
-docker-compose down
-```
-
-### Limpiar Todo (incluyendo datos)
-```bash
-docker-compose down -v
-```
-
-## 🔄 Reiniciar desde Cero
+## Prueba Rápida
 
 ```bash
-# Detener y eliminar todo
-docker-compose down -v
+# Health check
+curl http://localhost:5001/api/health
 
-# Reiniciar MongoDB
-docker-compose up -d
+# Buscar openings
+curl "http://localhost:5001/api/anime/search?q=naruto"
 
-# Esperar a que esté listo
-Start-Sleep -Seconds 3
+# Register
+curl -X POST http://localhost:5001/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test","email":"test@test.com","password":"123456"}'
 
-# Puebla datos
-cd server
-node seed.js
-
-# Inicia servidor
-pnpm run dev
+# Login
+curl -X POST http://localhost:5001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@test.com","password":"123456"}'
 ```
 
-## ✅ Checklist
+## Estructura de Carpetas
 
-- [ ] Docker está instalado y corriendo
-- [ ] `docker-compose up -d` ✓
-- [ ] MongoDB containers visibles en `docker ps`
-- [ ] `pnpm install` en server/ ✓
-- [ ] `pnpm install` en client/ ✓
-- [ ] `server/.env` existe
-- [ ] `pnpm run dev` en server/ ✓
-- [ ] API responde en `http://localhost:5000/api/health`
-- [ ] `pnpm run dev` en client/ ✓
-- [ ] Cliente carga en `http://localhost:5173`
+```
+proyecto-con-ai/
+├── client/                 # Frontend React + Vite + Tailwind
+│   └── src/
+│       ├── pages/          # Login, Home, CreateTournament, Tournament, Room, Ranking
+│       ├── components/     # Navbar, BracketView, VideoPlayer, VolumeSlider, etc.
+│       ├── hooks/          # useAuth, useSocket, useAnimeSearch
+│       ├── context/        # AuthContext
+│       └── utils/          # api.js, animeApi.js
+└── server/                 # Backend Express + MongoDB + Socket.IO
+    └── src/
+        ├── config/mongodb.js
+        ├── models/         # 7 modelos Mongoose
+        ├── routes/         # auth, anime, tournament, room
+        ├── controllers/    # auth, anime, tournament, room
+        ├── sockets/roomSocket.js
+        ├── middleware/auth.js
+        └── utils/animeThemesService.js, videoCache.js
+```
 
-## 📚 Documentación
+## Documentación Relacionada
 
 - `PROJECT_CONTEXT.md` - Conocimiento completo del proyecto
-- `MONGODB_MIGRATION.md` - Detalles de la migración
-- `MONGODB_SETUP.md` - Guía de pruebas
-- `TESTING_GUIDE.md` - Cómo probar endpoints
-
-## 💡 Tips
-
-- Mongoose warnings sobre `useNewUrlParser` son normales, ignóralos
-- Mongo Express es útil para inspeccionar datos en tiempo real
-- `node seed.js` limpia y repuebla la BD cada vez que se ejecuta
-- Los IDs en MongoDB son ObjectId, no números como en MySQL
-
----
-
-**¡Listo para desarrollar!** 🎉
+- `server/API_DOCUMENTATION.md` - Documentación de API

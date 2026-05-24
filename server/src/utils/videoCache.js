@@ -1,10 +1,14 @@
 import fs from 'fs/promises'
 import path from 'path'
 import fetch from 'node-fetch'
+import { fileURLToPath } from 'url'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const CACHE_PREFIX = 'cache://'
 const VIDEO_CACHE_ROOT = path.resolve(
-  process.env.VIDEO_CACHE_DIR || path.join(process.cwd(), 'tmp', 'video-cache')
+  process.env.VIDEO_CACHE_DIR
+    ? path.resolve(__dirname, '../../', process.env.VIDEO_CACHE_DIR)
+    : path.join(__dirname, '../../tmp/video-cache')
 )
 
 const getTournamentCacheDir = (tournamentId) => (
@@ -33,12 +37,15 @@ const downloadVideoToCache = async (sourceUrl, outputPath) => {
   await fs.writeFile(outputPath, Buffer.from(arrayBuffer))
 }
 
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+
 export const ensureTournamentVideoCache = async (tournamentId, participants = []) => {
   const tournamentIdString = tournamentId.toString()
   const tournamentCacheDir = getTournamentCacheDir(tournamentIdString)
   await fs.mkdir(tournamentCacheDir, { recursive: true })
 
-  for (const participant of participants) {
+  for (let i = 0; i < participants.length; i++) {
+    const participant = participants[i]
     const participantId = participant?._id?.toString()
     const sourceVideoUrl = sanitizeVideoUrl(participant?.video_url)
 
@@ -50,8 +57,13 @@ export const ensureTournamentVideoCache = async (tournamentId, participants = []
 
     try {
       await fs.access(outputFile)
+      console.log(`Video ya cacheado: ${participantId}`)
     } catch {
+      const waitSeconds = 10 + Math.floor(Math.random() * 11)
+      console.log(`Descargando video ${i + 1}/${participants.length} - esperando ${waitSeconds}s...`)
+      await delay(waitSeconds * 1000)
       await downloadVideoToCache(sourceVideoUrl, outputFile)
+      console.log(`Video ${i + 1}/${participants.length} descargado: ${participantId}`)
     }
 
     participant.cached_video_url = `${CACHE_PREFIX}${tournamentIdString}/${participantId}.webm`

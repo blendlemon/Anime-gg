@@ -11,9 +11,8 @@ export default defineConfig(({ mode }) => {
       historyApiFallback: true,
       proxy: {
         '/api': {
-          target: env.VITE_BACKEND_URL,
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, '')
+          target: env.VITE_BACKEND_URL || 'http://localhost:5001',
+          changeOrigin: true
         }
       }
     }

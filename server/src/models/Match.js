@@ -11,7 +11,7 @@ const matchSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 1,
-    max: 4
+    max: 5
   },
   match_number: {
     type: Number,

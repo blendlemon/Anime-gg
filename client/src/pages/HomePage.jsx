@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Navbar } from '../components/Navbar'
 import { OpeningCard } from '../components/OpeningCard'
+import { OpenRoomsModal } from '../components/OpenRoomsModal'
 import { animeAPI } from '../utils/api'
 
 // Página principal con búsqueda de openings
 export const HomePage = () => {
   const navigate = useNavigate()
+  const [showOpenRooms, setShowOpenRooms] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [openings, setOpenings] = useState([])
   const [loading, setLoading] = useState(false)
@@ -53,14 +55,27 @@ export const HomePage = () => {
             </p>
           </div>
 
-          {/* Botón crear torneo */}
-          <button
-            onClick={() => navigate('/create')}
-            className="inline-flex items-center space-x-2 px-8 py-4 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-xl transition"
-          >
-            <span>✨</span>
-            <span>Crear Torneo</span>
-          </button>
+          {/* Botones */}
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => navigate('/create')}
+              className="inline-flex items-center space-x-2 px-8 py-4 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-xl transition"
+            >
+              <span>✨</span>
+              <span>Crear Torneo</span>
+            </button>
+            <button
+              onClick={() => setShowOpenRooms(true)}
+              className="inline-flex items-center space-x-2 px-8 py-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-semibold rounded-xl border border-zinc-700 transition"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <span>Ver Salas Abiertas</span>
+            </button>
+          </div>
+
+          <OpenRoomsModal isOpen={showOpenRooms} onClose={() => setShowOpenRooms(false)} />
         </section>
 
         {/* Sección de búsqueda */}

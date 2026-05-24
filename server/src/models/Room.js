@@ -35,7 +35,11 @@ const roomSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     }
-  ]
+  ],
+  videos_ready: {
+    type: Boolean,
+    default: false
+  }
 }, { timestamps: true })
 
 export default mongoose.model('Room', roomSchema)

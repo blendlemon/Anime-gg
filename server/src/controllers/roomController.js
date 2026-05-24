@@ -77,6 +77,41 @@ export const getRoomByInviteCode = async (req, res) => {
   }
 }
 
+// Obtener salas abiertas (status 'waiting') que aún no han empezado
+export const getOpenRooms = async (req, res) => {
+  try {
+    const rooms = await Room.find({ status: 'waiting' })
+      .populate({
+        path: 'tournament_id',
+        select: 'name description size filterType'
+      })
+      .sort({ createdAt: -1 })
+
+    const roomsData = rooms
+      .filter(room => room.tournament_id)
+      .map(room => ({
+        _id: room._id,
+        invite_code: room.invite_code,
+        tournament: room.tournament_id,
+        host_user_id: room.host_user_id,
+        connected_users: room.connected_users.length,
+        created_at: room.createdAt
+      }))
+
+    return res.status(200).json({
+      success: true,
+      rooms: roomsData
+    })
+  } catch (error) {
+    console.error('Error en getOpenRooms:', error)
+    return res.status(500).json({
+      success: false,
+      error: 'Error al obtener salas abiertas',
+      details: error.message
+    })
+  }
+}
+
 // Unirse a una sala (crear entrada de participante)
 export const joinRoom = async (req, res) => {
   try {

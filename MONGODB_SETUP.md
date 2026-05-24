@@ -1,196 +1,64 @@
-# MongoDB Migration - Quick Test Guide
+# MongoDB Setup
 
-## ✅ Status: Migración Completada
+## Estado: MongoDB Atlas (cloud)
 
-La migración de MySQL a MongoDB está **100% funcional**.
+El proyecto usa MongoDB Atlas como base de datos. No requiere Docker ni instalación local.
 
-## 🚀 Quick Start
+## Configuración
 
-### 1. Inicia los contenedores
-```bash
-cd "d:\proyecto con ai"
-docker-compose up -d
+### 1. Crear cluster en MongoDB Atlas
+- Ve a https://www.mongodb.com/cloud/atlas
+- Crea cuenta gratuita (M0 cluster)
+- Crea un usuario de base de datos (Database Access)
+- Configura Network Access (0.0.0.0/0 para desarrollo)
+
+### 2. Obtener connection string
+Desde Atlas → Clusters → Connect → Connect your application:
+```
+mongodb+srv://<usuario>:<password>@<cluster>.mongodb.net/anime_tournament?retryWrites=true&w=majority
 ```
 
-Verificar que estén corriendo:
-```bash
-docker ps
+### 3. Configurar en el proyecto
+Editar `server/.env`:
+```
+MONGODB_URI=mongodb+srv://<usuario>:<password>@<cluster>.mongodb.net/anime_tournament?retryWrites=true&w=majority
 ```
 
-Deberías ver:
-- `anime-tournament-mongo` (Puerto 27017)
-- `anime-tournament-mongo-express` (Puerto 8081 - Admin UI)
-
-### 2. Instala dependencias del servidor
+### 4. Iniciar servidor
 ```bash
-cd server
-pnpm install
-```
-
-### 3. Seed de datos (opcional)
-```bash
-node seed.js
-```
-
-Esto crea:
-- 1 usuario de prueba
-- 1 torneo con 4 participantes
-
-### 4. Inicia el servidor
-```bash
-pnpm run dev
+cd server && pnpm run dev
 ```
 
 Deberías ver:
 ```
-✓ MongoDB connected successfully
-✓ Server running on port 5000
-✓ API Health: http://localhost:5000/api/health
+MongoDB connected successfully
+Server running on port 5001
 ```
 
-## 🧪 Prueba los Endpoints
-
-### Health Check
-```bash
-curl http://localhost:5000/api/health
-```
-
-Respuesta esperada:
-```json
-{
-  "success": true,
-  "message": "Server is running",
-  "database": "MongoDB",
-  "timestamp": "2026-05-20T10:13:51.731Z"
-}
-```
-
-### GET /api/torneos (Listar)
-```bash
-curl http://localhost:5000/api/torneos
-```
-
-### GET /api/torneos/:id (Detalle)
-```bash
-curl http://localhost:5000/api/torneos/6a0d8a351d69a6d6a0edf4c6
-```
-
-Reemplaza el ID con uno real de tu base de datos.
-
-### POST /api/torneos (Crear)
-```bash
-curl -X POST http://localhost:5000/api/torneos \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Mi Nuevo Torneo",
-    "description": "Descripción del torneo",
-    "created_by": "6a0d8a351d69a6d6a0edf4be"
-  }'
-```
-
-## 📊 Admin MongoDB
-
-Accede a **Mongo Express** en http://localhost:8081
-- Usuario: `admin`
-- Contraseña: `admin123`
-
-Desde aquí puedes:
-- Ver todas las colecciones
-- Inspeccionar documentos
-- Ejecutar queries
-- Crear/editar documentos manualmente
-
-## 🗄️ Colecciones Creadas
+## Colecciones
 
 ```
 anime_tournament/
-├── users (1 documento)
-├── anime_openings (4 documentos)
-├── tournaments (1-2 documentos)
-├── tournament_participants (4 documentos)
-├── matches (0 documentos)
-└── votes (0 documentos)
+├── users
+├── anime_openings
+├── tournaments
+├── tournament_participants
+├── matches
+├── votes
+└── rooms
 ```
 
-## 🔄 Diferencias MySQL vs MongoDB
+## Troubleshooting
 
-| Aspecto | MySQL | MongoDB |
-|---------|-------|---------|
-| Conexión | mysql2 pool | Mongoose connection |
-| Queries | SQL strings | Mongoose methods |
-| Joins | SQL JOIN | populate() |
-| IDs | AUTO_INCREMENT | ObjectId |
-| Validación | Constraints | Schema validators |
-| Transactions | Nativas | Multi-doc (Replica Set) |
-
-## 📝 Cambios en el Código
-
-### Antes (MySQL):
-```javascript
-const [rows] = await connection.execute(
-  'SELECT * FROM tournaments WHERE id = ?',
-  [id]
-)
-```
-
-### Ahora (MongoDB):
-```javascript
-const tournament = await Tournament.findById(id)
-  .populate('created_by', 'username email')
-```
-
-## ⚠️ Importante
-
-### Mongoose Warnings (Safe to Ignore)
-```
-[MONGODB DRIVER] Warning: useNewUrlParser is deprecated
-[MONGODB DRIVER] Warning: useUnifiedTopology is deprecated
-```
-
-Estos son warnings normales de Mongoose 8.x. No afectan la funcionalidad.
-
-### Ports
-- MongoDB: `27017`
-- Mongo Express: `8081`
-- API Server: `5000`
-- Cliente Vite: `5173`
-
-## 🐛 Troubleshooting
-
-### MongoDB no conecta
+### Error de conexión
 ```bash
-# Verificar contenedores
-docker-compose logs mongodb
-
-# Reiniciar
-docker-compose restart mongodb
+# Verificar que la URI en .env es correcta
+# Verificar Network Access en Atlas (IP whitelist)
+# Verificar usuario/contraseña
 ```
 
-### Puerto ya está en uso
+### Limpiar datos
 ```bash
-# Liberar puerto 5000
-Get-NetTCPConnection -LocalPort 5000 | Stop-Process -Force
+# Conectarse a Atlas vía MongoDB Shell o Compass
+# Eliminar colecciones manualmente si es necesario
 ```
-
-### Limpiar todo y empezar de nuevo
-```bash
-# Eliminar todo incluyendo volúmenes
-docker-compose down -v
-
-# Reiniciar limpio
-docker-compose up -d
-node seed.js
-pnpm run dev
-```
-
-## 📚 Próximos Pasos
-
-- [ ] Integrar búsqueda de AnimeThemes
-- [ ] Crear endpoints de matches
-- [ ] Crear endpoints de votos
-- [ ] Tests e2e
-- [ ] Documentación OpenAPI/Swagger
-
-## 📞 Soporte
-
-Para más detalles, consulta `MONGODB_MIGRATION.md`

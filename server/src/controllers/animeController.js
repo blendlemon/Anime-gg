@@ -1,127 +1,14 @@
 import AnimeOpening from '../models/AnimeOpening.js'
 import Tournament from '../models/Tournament.js'
 import Room from '../models/Room.js'
-import fetch from 'node-fetch'
-import fs from 'fs'
-import fsPromises from 'fs/promises'
-import { searchOpenings, getAnimeBySlug } from '../utils/animeThemesService.js'
-import { resolveCachedVideoPath } from '../utils/videoCache.js'
-
-const streamLocalVideo = async (filePath, req, res) => {
-  const stats = await fsPromises.stat(filePath)
-  const fileSize = stats.size
-  const range = req.headers.range
-
-  res.setHeader('Content-Type', 'video/webm')
-  res.setHeader('Accept-Ranges', 'bytes')
-
-  if (range) {
-    const [startStr, endStr] = range.replace('bytes=', '').split('-')
-    const start = Number.parseInt(startStr, 10)
-    const end = endStr ? Number.parseInt(endStr, 10) : fileSize - 1
-
-    if (Number.isNaN(start) || Number.isNaN(end) || start > end || end >= fileSize) {
-      return res.status(416).end()
-    }
-
-    res.status(206)
-    res.setHeader('Content-Range', `bytes ${start}-${end}/${fileSize}`)
-    res.setHeader('Content-Length', end - start + 1)
-    return fs.createReadStream(filePath, { start, end }).pipe(res)
-  }
-
-  res.setHeader('Content-Length', fileSize)
-  return fs.createReadStream(filePath).pipe(res)
-}
-
-export const proxyVideo = async (req, res) => {
-  try {
-    const { url } = req.query
-
-    if (!url || url === 'undefined') {
-      return res.status(400).json({ error: 'URL requerida' })
-    }
-
-    const decodedUrl = decodeURIComponent(url)
-
-    if (decodedUrl.startsWith('cache://')) {
-      const localVideoPath = resolveCachedVideoPath(decodedUrl)
-
-      if (!localVideoPath) {
-        return res.status(400).json({ error: 'URL de caché inválida' })
-      }
-
-      try {
-        await fsPromises.access(localVideoPath)
-      } catch {
-        return res.status(404).json({ error: 'Vídeo temporal no encontrado' })
-      }
-
-      return streamLocalVideo(localVideoPath, req, res)
-    }
-
-    let parsedUrl
-    try {
-      parsedUrl = new URL(decodedUrl)
-    } catch {
-      return res.status(400).json({ error: 'URL inválida' })
-    }
-
-    const allowedOrigins = {
-      'animethemes.moe': 'https://animethemes.moe',
-      'v.animethemes.moe': 'https://v.animethemes.moe',
-      'files.animethemes.moe': 'https://files.animethemes.moe'
-    }
-    const safeOrigin = allowedOrigins[parsedUrl.hostname]
-    const isHttps = parsedUrl.protocol === 'https:'
-    const allowedHost = Boolean(safeOrigin)
-
-    if (!isHttps || !allowedHost) {
-      return res.status(400).json({ error: 'URL de vídeo no permitida' })
-    }
-
-    const safeUrl = `${safeOrigin}${parsedUrl.pathname}${parsedUrl.search}`
-    const response = await fetch(safeUrl, {
-      headers: {
-        Referer: 'https://animethemes.moe/',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        Accept: 'video/webm,video/*,*/*',
-        Range: req.headers.range || 'bytes=0-'
-      }
-    })
-
-    if (!response.ok && response.status !== 206) {
-      return res.status(response.status).json({ error: 'Error al obtener vídeo' })
-    }
-
-    res.setHeader('Content-Type', 'video/webm')
-    res.setHeader('Accept-Ranges', 'bytes')
-    res.setHeader('Access-Control-Allow-Origin', '*')
-
-    const contentLength = response.headers.get('content-length')
-    const contentRange = response.headers.get('content-range')
-
-    if (contentLength) {
-      res.setHeader('Content-Length', contentLength)
-    }
-    if (contentRange) {
-      res.setHeader('Content-Range', contentRange)
-      res.status(206)
-    }
-
-    response.body.pipe(res)
-  } catch (error) {
-    console.error('Error proxy vídeo:', error)
-    res.status(500).json({ error: 'Error al obtener vídeo' })
-  }
-}
+import { syncAllAnime } from '../utils/animeThemesService.js'
 
 /**
- * Busca openings en AnimeThemes y guarda los nuevos en MongoDB
+ * Busca openings en MongoDB (sin llamar a la API externa)
  */
 export const searchOpeningsController = async (req, res) => {
   try {
-    const { q } = req.query
+    const { q, limit = 50, skip = 0 } = req.query
 
     if (!q) {
       return res.status(400).json({
@@ -130,47 +17,30 @@ export const searchOpeningsController = async (req, res) => {
       })
     }
 
-    const openings = await searchOpenings(q)
+    const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
 
-    if (openings.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'No se encontraron openings',
-        data: []
-      })
+    const query = {
+      $or: [
+        { anime_title: regex },
+        { title: regex },
+        { artist: regex }
+      ]
     }
 
-    const savedOpenings = []
-    for (const opening of openings) {
-      const upserted = await AnimeOpening.findOneAndUpdate(
-        {
-          anime_slug: opening.anime_slug,
-          sequence: opening.sequence,
-          type: opening.type
-        },
-        {
-          title: opening.title,
-          anime_title: opening.anime_title,
-          anime_slug: opening.anime_slug,
-          year: opening.year,
-          season: opening.season,
-          artist: opening.artist,
-          video_url: opening.video_url,
-          thumbnail_url: opening.thumbnail_url,
-          type: opening.type,
-          sequence: opening.sequence,
-          source: 'animethemes'
-        },
-        { upsert: true, new: true }
-      )
-      savedOpenings.push(upserted)
-    }
+    const [openings, total] = await Promise.all([
+      AnimeOpening.find(query)
+        .limit(parseInt(limit))
+        .skip(parseInt(skip))
+        .sort({ anime_title: 1, sequence: 1 }),
+      AnimeOpening.countDocuments(query)
+    ])
 
     res.json({
       success: true,
-      data: savedOpenings,
-      count: savedOpenings.length,
-      message: 'Openings encontrados y guardados exitosamente'
+      data: openings,
+      count: openings.length,
+      total,
+      message: 'Openings obtenidos de la base de datos'
     })
   } catch (error) {
     console.error('Error searching openings:', error)
@@ -183,7 +53,7 @@ export const searchOpeningsController = async (req, res) => {
 }
 
 /**
- * Obtiene todos los openings de un anime por slug
+ * Obtiene todos los openings de un anime por slug (desde MongoDB)
  */
 export const getAnimeOpeningsController = async (req, res) => {
   try {
@@ -196,24 +66,13 @@ export const getAnimeOpeningsController = async (req, res) => {
       })
     }
 
-    let openings = await AnimeOpening.find({ anime_slug: slug }).sort({ sequence: 1 })
+    const openings = await AnimeOpening.find({ anime_slug: slug }).sort({ sequence: 1 })
 
     if (openings.length === 0) {
-      const animeThemesOpenings = await getAnimeBySlug(slug)
-
-      if (animeThemesOpenings.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'No se encontraron openings para este anime'
-        })
-      }
-
-      openings = await AnimeOpening.insertMany(
-        animeThemesOpenings.map(o => ({
-          ...o,
-          source: 'animethemes'
-        }))
-      )
+      return res.status(404).json({
+        success: false,
+        error: 'No se encontraron openings para este anime en la base de datos'
+      })
     }
 
     res.json({
@@ -288,5 +147,20 @@ export const cleanupOrphanedTournaments = async (req, res) => {
       error: 'Error en cleanup',
       details: error.message
     })
+  }
+}
+
+export const syncAnime = async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      message: 'Sincronización iniciada en segundo plano'
+    })
+
+    await syncAllAnime()
+    const total = await AnimeOpening.countDocuments()
+    console.log(`Sync manual completado. Total BD: ${total}`)
+  } catch (error) {
+    console.error('Error en sync manual:', error)
   }
 }
