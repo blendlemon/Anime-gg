@@ -1,6 +1,6 @@
 // Utilidades para hacer llamadas a la API del backend
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5001/api').replace(/\/$/, '')
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
 
 // Obtener token del localStorage
 const getToken = () => localStorage.getItem('authToken')

@@ -16,8 +16,12 @@ export const useAuth = () => {
 export const useSocket = () => {
   const [socket, setSocket] = useState(null)
   const { token, user } = useAuth()
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api'
-  const socketUrl = (import.meta.env.VITE_SOCKET_URL || apiUrl.replace(/\/api\/?$/, '')).replace(/\/$/, '')
+  const apiUrl = import.meta.env.VITE_API_URL || '/api'
+  // En desarrollo, socket conecta directo al backend (bypass Vite proxy para WebSocket)
+  // En producción, mismo origen funciona
+  const socketUrl = import.meta.env.VITE_SOCKET_URL || (
+    import.meta.env.DEV ? 'http://localhost:5001' : window.location.origin
+  )
 
   useEffect(() => {
     if (!token || !user) return
