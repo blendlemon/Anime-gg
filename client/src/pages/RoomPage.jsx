@@ -141,7 +141,6 @@ export const RoomPage = () => {
     if (!socket) return
 
     const handleRoomUpdated = (data) => {
-      console.log('▶ room_updated received', data)
       setRoomData(data)
       setConnectedUsers(data.connected_users || [])
       setRoomStatus(data.status || 'waiting')
@@ -149,7 +148,6 @@ export const RoomPage = () => {
     }
 
     const handleTournamentStarted = (data) => {
-      console.log('▶ tournament_started received', data)
       setRoomStatus('voting')
       setPhase(data.phase || 'playing_p1')
       setSkipCount({ skipped: 0, total: data.totalUsers || 0 })
@@ -161,28 +159,23 @@ export const RoomPage = () => {
     }
 
     const handleP1SkipUpdate = (data) => {
-      console.log('▶ p1_skip_update received', data)
       setSkipCount({ skipped: data.skippedCount, total: data.totalUsers })
     }
 
     const handleP1Skipped = () => {
-      console.log('▶ p1_skipped received')
       setPhase('playing_p2')
       setVideoError(false)
     }
 
     const handleP2Ended = (data) => {
-      console.log('▶ p2_ended received', data)
       setVotingTimeLeft(10)
     }
 
     const handleVoteUpdate = (data) => {
-      console.log('▶ vote_update received', data)
       setVotes(data.votes || { participant1: 0, participant2: 0 })
     }
 
     const handleMatchChanged = (data) => {
-      console.log('▶ match_changed received', data)
       if (data.currentMatch) {
         setCurrentMatch(data.currentMatch)
         setPhase(data.phase || 'playing_p1')
@@ -194,7 +187,6 @@ export const RoomPage = () => {
     }
 
     const handleTournamentEnded = (data) => {
-      console.log('▶ tournament_ended received', data)
       setRoomStatus('results')
       setTimeout(() => {
         if (data?.tournament?._id) {
@@ -206,12 +198,10 @@ export const RoomPage = () => {
     }
 
     const handleRoomClosed = () => {
-      console.log('▶ room_closed received')
       setShowRoomClosedModal(true)
     }
 
     const handleError = (data) => {
-      console.log('▶ error received', data)
       setError(data.message)
     }
 
@@ -248,12 +238,8 @@ export const RoomPage = () => {
   }
 
   const handleSkipP1 = () => {
-    console.log('handleSkipP1 called', { currentMatch: currentMatch?._id, userId, inviteCode })
     if (currentMatch && userId && inviteCode) {
-      console.log('Emitting skip_p1 with', { inviteCode, matchId: currentMatch._id, userId })
       skipP1(inviteCode, currentMatch._id, userId)
-    } else {
-      console.log('Cannot skip - missing data:', { currentMatch: !!currentMatch, userId: !!userId, inviteCode })
     }
   }
 

@@ -16,18 +16,12 @@ export const TournamentPage = () => {
   useEffect(() => {
     const fetchTournament = async () => {
       try {
-        console.log('Fetching tournament with ID:', id)
         const response = await tournamentAPI.getById(id)
-        
-        console.log('Tournament data:', response)
-        console.log('Matches from API:', response.matches)
 
         if (response.success) {
           setTournament(response.tournament)
           
-          // Los matches pueden venir en response.matches o en response.tournament.matches
           const matchesData = response.matches || response.tournament.matches || []
-          console.log('Final matches to display:', matchesData)
           
           setMatches(matchesData)
         } else {
@@ -50,8 +44,6 @@ export const TournamentPage = () => {
   const handleJoinRoom = () => {
     if (tournament?.invite_code) {
       navigate(`/room/${tournament.invite_code}`)
-    } else {
-      console.error('No hay invite_code disponible')
     }
   }
 

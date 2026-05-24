@@ -33,14 +33,6 @@ export const useSocket = () => {
       }
     })
 
-    newSocket.on('connect', () => {
-      console.log('✓ Conectado a Socket.IO')
-    })
-
-    newSocket.on('disconnect', () => {
-      console.log('✗ Desconectado de Socket.IO')
-    })
-
     setSocket(newSocket)
 
     return () => {

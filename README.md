@@ -1,83 +1,97 @@
-# Anime Openings Tournament
+# AnimeOpening.gg 🎌
 
-Aplicación de torneo eliminatorio para openings de anime con votación en tiempo real.
+Real-time anime openings tournament where users vote for their favorite openings in an elimination bracket.
 
-## Stack Tecnológico
+Torneo de openings de anime en tiempo real donde los usuarios votan por sus openings favoritos en bracket eliminatorio.
 
-**Frontend:** React 18 + Vite + Tailwind CSS 3 + Socket.IO Client
-**Backend:** Node.js + Express + MongoDB Atlas (Mongoose) + Socket.IO
-**Base de Datos:** MongoDB Atlas (cloud)
+---
 
-## Inicio Rápido
+## Tech Stack / Stack técnico
+
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | React 18 + Vite 5 + Tailwind CSS 3 |
+| **Backend** | Node.js + Express 4 + Socket.IO 4 |
+| **Database** | MongoDB Atlas (Mongoose 8) |
+| **Auth** | JWT + bcryptjs |
+| **External API** | [AnimeThemes](https://api.animethemes.moe) |
+| **Package Manager** | pnpm |
+
+---
+
+## Features / Características
+
+- **AnimeThemes search** — Search and browse openings from the AnimeThemes API
+- **Bracket tournaments** — Create elimination tournaments with 16 or 32 participants
+- **Real-time rooms** — Socket.IO rooms for synchronized voting
+- **Live voting** — Users vote in real-time during matches
+- **Ranking** — Openings ranked by votes received
+- **JWT Auth** — User registration and login
+
+---
+
+## Local Setup / Instalación local
 
 ```bash
-# 1. Clonar e instalar dependencias
+# 1. Install pnpm (if needed)
+npm install -g pnpm
+
+# 2. Install dependencies
 cd server && pnpm install
 cd ../client && pnpm install
 
-# 2. Configurar variables de entorno
-cp server/.env.example server/.env   # Editar MONGODB_URI con tu cluster Atlas
+# 3. Configure environment variables
+cp server/.env.example server/.env
 cp client/.env.example client/.env.local
 
-# 3. Iniciar backend (terminal 1)
-cd server && pnpm run dev    # http://localhost:5001
+# 4. Start backend (terminal 1)
+cd server && pnpm run dev
 
-# 4. Iniciar frontend (terminal 2)
-cd client && pnpm run dev    # http://localhost:5173
+# 5. Start frontend (terminal 2)
+cd client && pnpm run dev
+
+# 6. Open http://localhost:5173
 ```
+
+---
+
+## Environment Variables / Variables de entorno
+
+### Backend (`server/.env`)
+
+| Variable | Description |
+|----------|-------------|
+| `PORT` | Server port (default: 5001) |
+| `MONGODB_URI` | MongoDB Atlas connection string |
+| `JWT_SECRET` | Secret key for JWT tokens |
+| `CLIENT_URL` | Frontend URL for CORS |
+
+### Frontend (`client/.env.local`)
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_API_URL` | Backend API URL |
+
+---
 
 ## API Endpoints
 
-| Método | Endpoint | Auth | Descripción |
+| Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/api/health` | No | Health check |
-| POST | `/api/auth/register` | No | Registrar usuario |
-| POST | `/api/auth/login` | No | Iniciar sesión |
-| GET | `/api/anime/search?q=` | No | Buscar openings vía AnimeThemes |
-| GET | `/api/anime/anime?slug=` | No | Openings por slug de anime |
-| GET | `/api/anime` | No | Listar openings cacheados |
-| POST | `/api/tournaments` | Sí | Crear torneo (8/16/32 vídeos) |
-| GET | `/api/tournaments/:id` | No | Detalle de torneo |
-| GET | `/api/tournaments/:id/ranking` | No | Ranking del torneo |
-| GET | `/api/rooms/open/list` | No | Listar salas abiertas |
-| GET | `/api/rooms/:inviteCode` | No | Obtener sala |
+| POST | `/api/auth/register` | No | Register user |
+| POST | `/api/auth/login` | No | Login user |
+| GET | `/api/anime/search?q=` | No | Search openings |
+| GET | `/api/anime/anime?slug=` | No | Openings by anime slug |
+| GET | `/api/anime` | No | List cached openings |
+| POST | `/api/tournaments` | Yes | Create tournament |
+| GET | `/api/tournaments/:id` | No | Tournament details |
+| GET | `/api/tournaments/:id/ranking` | No | Tournament ranking |
+| GET | `/api/rooms/open/list` | No | List open rooms |
+| GET | `/api/rooms/:inviteCode` | No | Get room by invite code |
+
+---
 
 ## Socket.IO Events
 
-| Evento | Dirección | Descripción |
-|--------|-----------|-------------|
-| `join_room` | Cliente → Servidor | Unirse a sala |
-| `start_tournament` | Cliente → Servidor | Host inicia torneo |
-| `skip_p1` | Cliente → Servidor | Saltar primer opening |
-| `video_ended` | Cliente → Servidor | Vídeo terminó |
-| `submit_vote` | Cliente → Servidor | Votar por un opening |
-| `leave_room` | Cliente → Servidor | Salir de la sala |
-| `room_updated` | Servidor → Cliente | Estado actual de la sala |
-| `tournament_started` | Servidor → Cliente | Torneo iniciado |
-| `p1_skip_update` | Servidor → Cliente | Progreso de saltos |
-| `p1_skipped` | Servidor → Cliente | P1 saltado por todos |
-| `p2_ended` | Servidor → Cliente | P2 terminó, votación 10s |
-| `vote_update` | Servidor → Cliente | Conteo de votos en tiempo real |
-| `match_changed` | Servidor → Cliente | Siguiente match |
-| `tournament_ended` | Servidor → Cliente | Resultados finales |
-| `room_closed` | Servidor → Cliente | Sala cerrada |
-
-## Variables de Entorno
-
-### Backend (`server/.env`)
-```
-PORT=5001
-MONGODB_URI=mongodb+srv://usuario:password@cluster.mongodb.net/anime_tournament?retryWrites=true&w=majority
-JWT_SECRET=tu_secreto
-CLIENT_URL=http://localhost:5173
-```
-
-### Frontend (`client/.env.local`)
-```
-VITE_API_URL=http://localhost:5001/api
-```
-
-## Documentación Relacionada
-
-- `server/API_DOCUMENTATION.md` - Documentación de API detallada
-- `PROJECT_CONTEXT.md` - Contexto completo del proyecto
+See `PROJECT_CONTEXT.md` (removed in public version) or check `server/src/sockets/roomSocket.js` for the full event reference.

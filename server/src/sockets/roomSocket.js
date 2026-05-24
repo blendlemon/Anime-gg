@@ -89,8 +89,6 @@ const initRoomState = (inviteCode, { connectedUsersCount, participant1Id, partic
 }
 
 const advanceToNextMatch = async (io, inviteCode, room) => {
-  console.log(`[advanceToNextMatch] ${inviteCode}: buscando siguiente match...`)
-  console.log(`[advanceToNextMatch] round=${room.current_match_id?.round} match_number=${room.current_match_id?.match_number} tournament_id=${room.tournament_id?._id}`)
   const tournamentWithParticipants = await Tournament.findById(room.tournament_id._id)
   const totalUsers = room.connected_users.length
 
@@ -103,8 +101,6 @@ const advanceToNextMatch = async (io, inviteCode, room) => {
     participant2_id: { $exists: true }
   })
 
-  console.log(`[advanceToNextMatch] nextMatch=${nextMatch ? nextMatch._id : 'null'}`)
-
   if (nextMatch) {
     room.current_match_id = nextMatch._id
     await room.save()
@@ -114,13 +110,11 @@ const advanceToNextMatch = async (io, inviteCode, room) => {
       participant2Id: nextMatch.participant2_id
     })
     const matchData = await mapMatchForClient(nextMatch, tournamentWithParticipants)
-    console.log(`[advanceToNextMatch] matchData=${matchData ? 'ok' : 'null'}`)
     io.to(inviteCode).emit('match_changed', {
       currentMatch: matchData,
       phase: 'playing_p1',
       totalUsers
     })
-    console.log(`[advanceToNextMatch] match_changed emitido`)
     return
   }
 
@@ -132,8 +126,6 @@ const advanceToNextMatch = async (io, inviteCode, room) => {
     participant2_id: { $exists: true }
   }).sort({ match_number: 1 })
 
-  console.log(`[advanceToNextMatch] nextRoundMatch=${nextRoundMatch ? nextRoundMatch._id : 'null'}`)
-
   if (nextRoundMatch) {
     room.current_match_id = nextRoundMatch._id
     await room.save()
@@ -143,27 +135,22 @@ const advanceToNextMatch = async (io, inviteCode, room) => {
       participant2Id: nextRoundMatch.participant2_id
     })
     const matchData = await mapMatchForClient(nextRoundMatch, tournamentWithParticipants)
-    console.log(`[advanceToNextMatch] matchData=${matchData ? 'ok' : 'null'}`)
     io.to(inviteCode).emit('match_changed', {
       currentMatch: matchData,
       phase: 'playing_p1',
       totalUsers
     })
-    console.log(`[advanceToNextMatch] match_changed emitido (next round)`)
     return
   }
 
-  console.log(`[advanceToNextMatch] No hay más matches, terminando torneo`)
   const tournament = await Tournament.findById(room.tournament_id._id)
   io.to(inviteCode).emit('tournament_ended', {
     message: '¡Torneo finalizado!',
     tournament,
     status: 'results'
   })
-  console.log(`[advanceToNextMatch] tournament_ended emitido`)
   await clearTournamentVideoCache(room.tournament_id._id)
   await deleteRoomOnly(room, io)
-  console.log(`[advanceToNextMatch] Sala eliminada`)
 }
 
 const cleanupRoomTournamentData = async (room) => {
@@ -326,7 +313,6 @@ export function setupRoomSocket(io) {
 
       const state = roomStates.get(code)
       if (!state) {
-        console.log(`[skip_p1] roomState NO ENCONTRADO para ${code}`)
         socket.emit('error', { message: 'El torneo no ha iniciado correctamente' })
         return
       }
@@ -334,7 +320,6 @@ export function setupRoomSocket(io) {
       state.skippedBy.add(userId.toString())
 
       const connectedCount = state.connectedUsersCount
-      console.log(`[skip_p1] ${userId} saltó: ${state.skippedBy.size}/${connectedCount}`)
 
       io.to(inviteCode).emit('p1_skip_update', {
         matchId,
@@ -343,7 +328,6 @@ export function setupRoomSocket(io) {
       })
 
       if (state.skippedBy.size >= connectedCount) {
-        console.log(`[skip_p1] Todos saltaron, enviando p1_skipped`)
         io.to(inviteCode).emit('p1_skipped', { matchId })
       }
     })
@@ -357,27 +341,20 @@ export function setupRoomSocket(io) {
         const { inviteCode, matchId, participant } = data
         const code = inviteCode.toUpperCase()
 
-        console.log(`[video_ended] code=${code} matchId=${matchId} participant=${participant}`)
-
         if (participant === 1) {
-          console.log(`[video_ended] P1 ended, emitiendo p1_skipped`)
           io.to(inviteCode).emit('p1_skipped', { matchId })
         } else if (participant === 2) {
           const state = roomStates.get(code)
-          console.log(`[video_ended] P2 ended, state=${!!state}, timerStarted=${state?.timerStarted}, p2Ended=${state?.p2Ended}`)
           if (!state || state.timerStarted) {
-            console.log(`[video_ended] Saliendo: no state o timer ya iniciado`)
             return
           }
 
           state.p2Ended = true
           state.timerStarted = true
           state.p2Timer = setTimeout(async () => {
-            console.log(`[video_ended] Timer 10s expiró para ${code}, llamando finalizeMatch`)
             await finalizeMatch(io, inviteCode)
           }, 10000)
 
-          console.log(`✓ P2 ended ${code}, votación por 10s`)
           io.to(inviteCode).emit('p2_ended', { matchId })
         }
       } catch (error) {
@@ -398,8 +375,6 @@ export function setupRoomSocket(io) {
 
         const state = roomStates.get(code)
         if (!state) return
-
-        console.log(`✓ P2 playing ${code}`)
       } catch (error) {
         console.error('Error en p2_ready:', error)
       }
@@ -420,7 +395,6 @@ export function setupRoomSocket(io) {
         const code = inviteCode.toUpperCase()
         const state = roomStates.get(code)
         if (!state) {
-          console.log(`[submit_vote] roomState NO ENCONTRADO para ${code}`)
           socket.emit('error', { message: 'El torneo no está activo' })
           return
         }
@@ -428,9 +402,6 @@ export function setupRoomSocket(io) {
         const uid = userId.toString()
         const pid = participantId.toString()
 
-        console.log(`[submit_vote] uid=${uid} pid=${pid} p1Id=${state.participant1Id} p2Id=${state.participant2Id} votedP1=[${[...state.votedP1]}] votedP2=[${[...state.votedP2]}] connectedCount=${state.connectedUsersCount}`)
-
-        // Actualizar contadores en memoria
         if (state.votedP1.has(uid) || state.votedP2.has(uid)) {
           state.votedP1.delete(uid)
           state.votedP2.delete(uid)
@@ -440,12 +411,10 @@ export function setupRoomSocket(io) {
         } else if (pid === state.participant2Id) {
           state.votedP2.add(uid)
         } else {
-          console.log(`[submit_vote] PID NO COINCIDE: pid=${pid} !== p1Id=${state.participant1Id} !== p2Id=${state.participant2Id}`)
           socket.emit('error', { message: 'Participante inválido' })
           return
         }
 
-        // Persistir voto en DB (asíncrono, no bloquea)
         Vote.findOneAndUpdate(
           { match_id: matchId, user_id: userId },
           { participant_id: participantId },
@@ -456,8 +425,6 @@ export function setupRoomSocket(io) {
         const votes_p2 = state.votedP2.size
         const totalVotes = votes_p1 + votes_p2
 
-        console.log(`✓ Voto registrado ${matchId}: P1=${votes_p1}, P2=${votes_p2}, total=${totalVotes}, needed=${state.connectedUsersCount}`)
-
         io.to(inviteCode).emit('vote_update', {
           matchId,
           votes: { participant1: votes_p1, participant2: votes_p2 },
@@ -465,7 +432,6 @@ export function setupRoomSocket(io) {
         })
 
         if (totalVotes >= state.connectedUsersCount) {
-          console.log(`[submit_vote] Todos votaron (${totalVotes}/${state.connectedUsersCount}), llamando finalizeMatch`)
           await finalizeMatch(io, inviteCode)
         }
       } catch (error) {
@@ -479,17 +445,13 @@ export function setupRoomSocket(io) {
       const code = inviteCode.toUpperCase()
       const state = roomStates.get(code)
 
-      // Capturar votos en memoria antes de borrar el estado
       let votesP1 = 0
       let votesP2 = 0
       if (state) {
         votesP1 = state.votedP1.size
         votesP2 = state.votedP2.size
-        console.log(`[finalizeMatch] ${code}: votesP1=${votesP1} votesP2=${votesP2}, limpiando estado`)
         if (state.p2Timer) clearTimeout(state.p2Timer)
         roomStates.delete(code)
-      } else {
-        console.log(`[finalizeMatch] ${code}: state ya eliminado`)
       }
 
       const room = await Room.findOne({ invite_code: code })
@@ -497,27 +459,22 @@ export function setupRoomSocket(io) {
         .populate('current_match_id')
 
       if (!room || !room.current_match_id) {
-        console.log(`[finalizeMatch] ${code}: sala o match no encontrado, saliendo`)
         return
       }
 
       const match = room.current_match_id
       if (match.status === 'completed') {
-        console.log(`[finalizeMatch] ${code}: match ya completado, saliendo`)
         return
       }
 
       let winnerId = null
       if (votesP1 > votesP2) {
         winnerId = match.participant1_id
-        console.log(`[finalizeMatch] ${code}: Gana P1 (${votesP1}-${votesP2})`)
       } else if (votesP2 > votesP1) {
         winnerId = match.participant2_id
-        console.log(`[finalizeMatch] ${code}: Gana P2 (${votesP1}-${votesP2})`)
       } else {
         const participants = [match.participant1_id, match.participant2_id]
         winnerId = participants[Math.floor(Math.random() * participants.length)]
-        console.log(`[finalizeMatch] ${code}: Empate/random (${votesP1}-${votesP2})`)
       }
 
       match.winner_id = winnerId
@@ -530,7 +487,6 @@ export function setupRoomSocket(io) {
       )
 
       await Vote.deleteMany({ match_id: match._id })
-      console.log(`[finalizeMatch] ${code}: match completado, avanzando...`)
 
       await placeWinnerInBracket(room.tournament_id._id, match)
       await advanceToNextMatch(io, inviteCode, room)

@@ -176,8 +176,6 @@ export async function syncAllAnime(progressCallback) {
   let skipped = 0
   let errors = 0
 
-  console.log('Iniciando sincronización completa desde AnimeThemes...')
-
   while (hasNext) {
     const { anime, links } = await getAnimePage(page, perPage)
     if (!anime || anime.length === 0) break
@@ -215,8 +213,6 @@ export async function syncAllAnime(progressCallback) {
       progressCallback(page, totalOpenings)
     }
 
-    console.log(`Página ${page} - ${anime.length} animes - ${pageOpenings} openings nuevos - Total: ${totalOpenings}`)
-
     hasNext = links?.next != null
     page++
 
@@ -225,6 +221,5 @@ export async function syncAllAnime(progressCallback) {
     }
   }
 
-  console.log(`Sync completado: ${inserted} insertados, ${skipped} saltados, ${errors} errores de ${page - 1} páginas`)
   return totalOpenings
 }

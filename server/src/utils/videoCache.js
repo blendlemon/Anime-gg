@@ -57,13 +57,10 @@ export const ensureTournamentVideoCache = async (tournamentId, participants = []
 
     try {
       await fs.access(outputFile)
-      console.log(`Video ya cacheado: ${participantId}`)
     } catch {
       const waitSeconds = 10 + Math.floor(Math.random() * 11)
-      console.log(`Descargando video ${i + 1}/${participants.length} - esperando ${waitSeconds}s...`)
       await delay(waitSeconds * 1000)
       await downloadVideoToCache(sourceVideoUrl, outputFile)
-      console.log(`Video ${i + 1}/${participants.length} descargado: ${participantId}`)
     }
 
     participant.cached_video_url = `${CACHE_PREFIX}${tournamentIdString}/${participantId}.webm`

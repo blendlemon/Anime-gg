@@ -158,8 +158,6 @@ export const syncAnime = async (req, res) => {
     })
 
     await syncAllAnime()
-    const total = await AnimeOpening.countDocuments()
-    console.log(`Sync manual completado. Total BD: ${total}`)
   } catch (error) {
     console.error('Error en sync manual:', error)
   }
