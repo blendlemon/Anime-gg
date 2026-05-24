@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "cd client && npm install && npm run build",
+    "build": "cd client && pnpm install --no-frozen-lockfile && pnpm build",
     "start": "NODE_ENV=production node server/src/index.js",
     "postinstall": "cd server && npm install"
   },
