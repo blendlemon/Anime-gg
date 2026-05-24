@@ -3,12 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "cd client && npx pnpm install && npx pnpm build",
+    "build": "cd client && npm install && npm run build",
     "start": "NODE_ENV=production node server/src/index.js",
-    "postinstall": "cd server && npx pnpm install"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "postinstall": "cd server && npm install"
   },
   "engines": {
     "node": ">=18.0.0"
