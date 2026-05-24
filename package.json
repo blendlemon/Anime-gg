@@ -7,6 +7,9 @@
     "start": "NODE_ENV=production node server/src/index.js",
     "postinstall": "cd server && npx pnpm install"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  },
   "engines": {
     "node": ">=18.0.0"
   }
