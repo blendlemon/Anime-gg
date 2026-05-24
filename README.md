@@ -22,7 +22,7 @@ Torneo de openings de anime en tiempo real donde los usuarios votan por sus open
 ## Features / Características
 
 - **AnimeThemes search** — Search and browse openings from the AnimeThemes API
-- **Bracket tournaments** — Create elimination tournaments with 16 or 32 participants
+- **Bracket tournaments** — Create elimination tournaments with 8, 16 or 32 participants
 - **Real-time rooms** — Socket.IO rooms for synchronized voting
 - **Live voting** — Users vote in real-time during matches
 - **Ranking** — Openings ranked by votes received
