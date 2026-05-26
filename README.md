@@ -5,6 +5,7 @@ Real-time anime openings tournament where users vote for their favorite openings
 Torneo de openings de anime en tiempo real donde los usuarios votan por sus openings favoritos en bracket eliminatorio.
 
 ---
+🌐 [Live Demo](https://animeopenings-gg.onrender.com/home)
 
 ## Tech Stack / Stack técnico
 
