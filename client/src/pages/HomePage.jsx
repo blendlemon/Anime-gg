@@ -93,7 +93,7 @@ export const HomePage = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Busca anime (ej: Demon Slayer, Attack on Titan)..."
+                  placeholder="Busca anime (ej: Kimetsu no yaiba, Shingeki no kyojin)..."
                   className="w-full px-4 py-3 pl-12 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-violet-600 focus:ring-1 focus:ring-violet-600 transition"
                 />
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500">
